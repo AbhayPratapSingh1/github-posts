@@ -1,0 +1,1 @@
+export const READ_WORD_PER_MINUTE = 120;
