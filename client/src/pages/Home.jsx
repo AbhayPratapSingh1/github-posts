@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { FaGithub, FaPlay } from "react-icons/fa"
-import { POSTS } from "../config/posts"
 import { getPosts } from "../api/posts"
 
 const primaryLabel = (type) => {
@@ -11,14 +10,14 @@ const primaryLabel = (type) => {
 }
 
 function Home() {
-  const [posts, setPosts] = useState(POSTS)
+  const [posts, setPosts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   console.log({posts})
 
   useEffect(() => {
     getPosts()
       .then(setPosts)
-      .catch(() => setPosts(POSTS))
+      .catch(() => setPosts([]))
       .finally(() => setIsLoading(false))
   }, [])
 

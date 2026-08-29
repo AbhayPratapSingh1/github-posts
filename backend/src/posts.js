@@ -73,7 +73,7 @@ Lox in Java is a full implementation of the Lox programming language from the bo
 
 - **Java** - interpreter implementation (scanner, parser, resolver, interpreter)
 - **Web** - hosted on Render for browser access`,
-  github: "git@github.com:AbhayPratapSingh1/lox-web-java.git",
+  github: "https://github.com/AbhayPratapSingh1/lox-web-java",
   dateOfCreation: 1778473951,
 };
 
@@ -108,7 +108,7 @@ Fall Ball is a simple but addictive arcade game. The ball never stops falling - 
 
 - **JavaScript** - game logic and rendering
 - **Vercel** - deployment`,
-  github: "git@github.com:AbhayPratapSingh1/fall-ball.git",
+  github: "https://github.com/AbhayPratapSingh1/fall-ball",
   dateOfCreation: 1767933151,
 };
 
@@ -138,7 +138,7 @@ Highway Car is a 3D driving experience built from scratch in p5.js. No 3D librar
 - **p5.js** - rendering
 - **JavaScript** - 3D math, projection, and movement
 - **Vercel** - deployment`,
-  github: "git@github.com:AbhayPratapSingh1/highway-car.git",
+  github: "https://github.com/AbhayPratapSingh1/highway-car",
   dateOfCreation: 1770957679,
 };
 
@@ -168,7 +168,7 @@ Rubix Cube is an interactive 3D Rubik's Cube built from scratch - no cube librar
 - **JavaScript** - 3D engine and cube rotation logic
 - **p5.js** - rendering
 - **Vercel** - deployment`,
-  github: "git@github.com:AbhayPratapSingh1/rubix-cube.git",
+  github: "https://github.com/AbhayPratapSingh1/rubix-cube",
   dateOfCreation: 1771648879,
 };
 
@@ -191,7 +191,7 @@ Bomber Man is a classic Bomberman-style game built with JavaScript.
 ## Tech Stack
 
 - **JavaScript** - game logic and rendering`,
-  github: "git@github.com:AbhayPratapSingh1/bomber-man.git",
+  github: "https://github.com/AbhayPratapSingh1/bomber-man",
   dateOfCreation: 1761021679,
 };
 
@@ -220,7 +220,7 @@ export const threeDShapes = {
 - **p5.js** - rendering
 - **JavaScript** - 3D engine and math
 - **Vercel** - deployment`,
-  github: "git@github.com:AbhayPratapSingh1/3d-shapes.git",
+  github: "https://github.com/AbhayPratapSingh1/3d-shapes",
   dateOfCreation: 1769920879,
 };
 
@@ -243,7 +243,7 @@ L-System Terminal is an L-system (Lindenmayer system) implementation that draws 
 ## Tech Stack
 
 - **JavaScript** - L-system logic and rendering`,
-  github: "git@github.com:AbhayPratapSingh1/l-system-terminal.git",
+  github: "https://github.com/AbhayPratapSingh1/l-system-terminal",
   dateOfCreation: 1771389679,
 };
 
@@ -266,7 +266,7 @@ export const threeDShapesTerminal = {
 ## Tech Stack
 
 - **JavaScript** - 3D math and terminal rendering`,
-  github: "git@github.com:AbhayPratapSingh1/3d-shapes-Terminal.git",
+  github: "https://github.com/AbhayPratapSingh1/3d-shapes-Terminal",
   dateOfCreation: 1771389679,
 };
 
@@ -290,7 +290,7 @@ Flappy Bird is a classic flap-and-dodge game built on the p5.js canvas.
 
 - **p5.js** - canvas rendering and game loop
 - **JavaScript** - game logic`,
-  github: "git@github.com:AbhayPratapSingh1/flappy-bird.git",
+  github: "https://github.com/AbhayPratapSingh1/flappy-bird",
   dateOfCreation: 1767674479,
 };
 
@@ -314,7 +314,7 @@ MediaPipe Draw with Hand lets you draw on the screen using only your hand gestur
 
 - **MediaPipe** - hand landmark tracking
 - **JavaScript** - canvas and gesture mapping`,
-  github: "git@github.com:AbhayPratapSingh1/media-pipe-draw-with-hand.git",
+  github: "https://github.com/AbhayPratapSingh1/media-pipe-draw-with-hand",
   dateOfCreation: 1780548079,
 };
 
@@ -342,7 +342,7 @@ Dino Gesture is a gesture-controlled dino runner game - jump and duck using hand
 
 - **JavaScript** - game logic and gesture recognition
 - **Vercel** - deployment`,
-  github: "git@github.com:AbhayPratapSingh1/dino-gesture.git",
+  github: "https://github.com/AbhayPratapSingh1/dino-gesture",
   dateOfCreation: 1776660359,
 };
 
@@ -370,7 +370,7 @@ Zombie Hit 3D is a first-person 3D zombie shooter you can play right in the brow
 
 - **JavaScript** - 3D rendering and game logic
 - **Vercel** - deployment`,
-  github: "git@github.com:AbhayPratapSingh1/zombie-hit-3d.git",
+  github: "https://github.com/AbhayPratapSingh1/zombie-hit-3d",
   dateOfCreation: 1784522479,
 };
 
@@ -398,7 +398,7 @@ export const threeDMaze = {
 
 - **JavaScript** - raycasting and maze generation
 - **Vercel** - deployment`,
-  github: "git@github.com:AbhayPratapSingh1/3d-maze.git",
+  github: "https://github.com/AbhayPratapSingh1/3d-maze",
   dateOfCreation: 1782794479,
 };
 
@@ -423,7 +423,7 @@ Mine Swapper is a Minesweeper-inspired game built in Python using OpenCV (cv2) a
 - **Python** - game logic
 - **cv2 (OpenCV)** - rendering
 - **numpy** - grid and board handling`,
-  github: "git@github.com:AbhayPratapSingh1/Mine-Swapper.git",
+  github: "https://github.com/AbhayPratapSingh1/Mine-Swapper",
   dateOfCreation: 1721882479,
 };
 
@@ -446,6 +446,6 @@ ID Card Generator is a Python utility that creates ID cards from provided data.
 ## Tech Stack
 
 - **Python** - logic and card generation`,
-  github: "git@github.com:AbhayPratapSingh1/Id-Card-generator.git",
+  github: "https://github.com/AbhayPratapSingh1/Id-Card-generator",
   dateOfCreation: 1716612079,
 };

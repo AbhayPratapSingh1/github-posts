@@ -4,7 +4,8 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "sync": "node scripts/generate-posts.js"
   },
   "keywords": [],
   "author": "",

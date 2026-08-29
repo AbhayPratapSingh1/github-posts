@@ -1,42 +1,30 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
-import {
-  alienAttack,
-  loxJava,
-  fallBall,
-  highwayCar,
-  rubixCube,
-  bomberMan,
-  threeDShapes,
-  lSystemTerminal,
-  threeDShapesTerminal,
-  flappyBird,
-  mediaPipeDrawWithHand,
-  dinoGesture,
-  zombieHit3D,
-  threeDMaze,
-  mineSwapper,
-  idCardGenerator,
-} from './src/posts.js'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
+import * as seeds from './src/posts.js'
 
-const posts = {
-  [alienAttack.id]: alienAttack,
-  [loxJava.id]: loxJava,
-  [fallBall.id]: fallBall,
-  [highwayCar.id]: highwayCar,
-  [rubixCube.id]: rubixCube,
-  [bomberMan.id]: bomberMan,
-  [threeDShapes.id]: threeDShapes,
-  [lSystemTerminal.id]: lSystemTerminal,
-  [threeDShapesTerminal.id]: threeDShapesTerminal,
-  [flappyBird.id]: flappyBird,
-  [mediaPipeDrawWithHand.id]: mediaPipeDrawWithHand,
-  [dinoGesture.id]: dinoGesture,
-  [zombieHit3D.id]: zombieHit3D,
-  [threeDMaze.id]: threeDMaze,
-  [mineSwapper.id]: mineSwapper,
-  [idCardGenerator.id]: idCardGenerator,
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const loadPosts = () => {
+  try {
+    const generated = JSON.parse(
+      readFileSync(path.join(__dirname, 'posts', 'post.json'), 'utf-8'),
+    )
+    console.log(`Loaded ${generated.length} posts from posts/post.json`)
+    return generated
+  } catch {
+    console.log('posts/post.json not found, falling back to seeds')
+    return Object.entries(seeds)
+      .filter(([, post]) => post && typeof post === 'object' && post.id)
+      .map(([, post]) => post)
+  }
 }
+
+const posts = Object.fromEntries(
+  loadPosts().map((post) => [post.id, post]),
+)
 
 export const app = new Hono()
 
