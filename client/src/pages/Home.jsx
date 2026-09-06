@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { FaPlay, FaPlus, FaSignOutAlt, FaGithub } from "react-icons/fa"
 import { getPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
+import { useToast } from "../context/ToastContext"
 
 const primaryLabel = (type) => {
   if (type === "playable") return <><FaPlay /> Playable</>
@@ -12,13 +13,17 @@ const primaryLabel = (type) => {
 
 function Home() {
   const { user, logout } = useAuth()
+  const { addToast } = useToast()
   const [posts, setPosts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     getPosts()
       .then(setPosts)
-      .catch(() => setPosts([]))
+      .catch(() => {
+        setPosts([])
+        addToast("Failed to load posts", "error")
+      })
       .finally(() => setIsLoading(false))
   }, [])
 

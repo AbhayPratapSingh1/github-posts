@@ -35,7 +35,6 @@ export function AuthProvider({ children }) {
       setUser(data.user)
       return true
     }
-    alert(data.error || "Login failed")
     return false
   }
 

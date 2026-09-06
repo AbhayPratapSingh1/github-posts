@@ -1,10 +1,12 @@
 import { FaGithub } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
+import { useToast } from "../context/ToastContext"
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 
 function Login() {
   const { user, loading, login, checkAuth } = useAuth()
+  const { addToast } = useToast()
   const navigate = useNavigate()
   const [userid, setUserid] = useState("")
   const [password, setPassword] = useState("")
@@ -21,7 +23,7 @@ function Login() {
   const handleLogin = async () => {
     const ok = await login(userid, password)
     if (ok) navigate("/", { replace: true })
-    else setError("")
+    else addToast("Invalid credentials", "error")
   }
 
   return (

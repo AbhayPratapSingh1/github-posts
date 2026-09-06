@@ -7,6 +7,7 @@ import { READ_WORD_PER_MINUTE } from "../config/text"
 import { POST_TYPE, findPostById } from "../config/posts"
 import { getPostById, deletePost } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
+import { useToast } from "../context/ToastContext"
 
 const primaryAction = (post) => {
   if (!post) return null
@@ -21,6 +22,7 @@ function Post() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { addToast } = useToast()
   const [post, setPost] = useState(() => findPostById(id))
   const [isLoading, setIsLoading] = useState(true)
 
@@ -28,7 +30,10 @@ function Post() {
     setIsLoading(true)
     getPostById(id)
       .then((data) => setPost(data))
-      .catch(() => setPost(findPostById(id)))
+      .catch(() => {
+        setPost(findPostById(id))
+        addToast("Failed to load post", "error")
+      })
       .finally(() => setIsLoading(false))
   }, [id])
 
@@ -39,7 +44,8 @@ function Post() {
       await deletePost(id)
       navigate("/")
     } catch (err) {
-      alert(err.message || "Failed to delete post")
+      const msg = err.message || "Failed to delete post"
+      addToast(msg, "error")
     }
   }
 

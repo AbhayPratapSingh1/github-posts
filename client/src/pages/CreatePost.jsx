@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import { FaArrowLeft, FaSpinner, FaCheck } from "react-icons/fa"
 import ReactQuill from "react-quill-new"
 import "react-quill-new/dist/quill.snow.css"
-import { createPost, getGithubInfo, generatePostContent } from "../api/posts"
+import { createPost, updatePost, getGithubInfo, getPostById, generatePostContent } from "../api/posts"
+import { useToast } from "../context/ToastContext"
 
 const inputClass =
   "w-full rounded-lg border border-bg-300 bg-bg-50 px-4 py-2.5 text-sm text-fg-900 outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
@@ -12,8 +13,12 @@ const labelClass = "block text-sm font-medium text-fg-700 dark:text-fg-300 mb-1.
 
 function CreatePost() {
   const navigate = useNavigate()
+  const { id } = useParams()
+  const isEdit = Boolean(id)
+  const { addToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [loadingPost, setLoadingPost] = useState(isEdit)
   const [form, setForm] = useState({
     title: "",
     type: "playable",
@@ -32,6 +37,34 @@ function CreatePost() {
   const debounceRef = useRef(null)
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  useEffect(() => {
+    if (!id) return
+    getPostById(id)
+      .then((post) => {
+        setForm({
+          title: post.title || "",
+          type: post.type || "playable",
+          shortDescription: post.shortDescription || "",
+          description: post.description || "",
+          github: post.github || "",
+          hostedUrl: post.hosted?.url || "",
+          hostedPlatform: post.hosted?.plateForm || "",
+          availableAt: Array.isArray(post.availableAt) ? post.availableAt.join(", ") : "web",
+        })
+        if (post.github) setGithubInfo({
+          githubOwner: post.githubOwner,
+          language: post.language,
+          defaultBranch: post.defaultBranch,
+          stats: post.stats,
+        })
+      })
+      .catch(() => {
+        setError("Failed to load post")
+        addToast("Failed to load post", "error")
+      })
+      .finally(() => setLoadingPost(false))
+  }, [id])
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -74,7 +107,9 @@ function CreatePost() {
           : f.availableAt,
       }))
     } catch (err) {
-      setGenerateError(err.message || "Failed to generate content")
+      const msg = err.message || "Failed to generate content"
+      setGenerateError(msg)
+      addToast(msg, "error")
     } finally {
       setGenerating(false)
     }
@@ -98,10 +133,16 @@ function CreatePost() {
     }
 
     try {
-      await createPost(payload)
+      if (isEdit) {
+        await updatePost(id, payload)
+      } else {
+        await createPost(payload)
+      }
       navigate("/")
     } catch (err) {
-      setError(err.message || "Failed to create post")
+      const msg = err.message || "Failed to save post"
+      setError(msg)
+      addToast(msg, "error")
     } finally {
       setIsSubmitting(false)
     }
@@ -121,8 +162,12 @@ function CreatePost() {
 
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <h1 className="mb-8 text-3xl font-extrabold tracking-tight sm:text-4xl">
-          Create New Post
+          {isEdit ? "Edit Post" : "Create New Post"}
         </h1>
+
+        {loadingPost && (
+          <p className="text-fg-500 dark:text-fg-400">Loading post...</p>
+        )}
 
         {error && (
           <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-400">
@@ -285,7 +330,7 @@ function CreatePost() {
               disabled={isSubmitting}
               className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700 disabled:opacity-50"
             >
-              {isSubmitting ? "Creating..." : "Create Post"}
+              {isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Create Post"}
             </button>
           </div>
         </form>
