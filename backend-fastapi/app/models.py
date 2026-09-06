@@ -30,6 +30,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     github_id = Column(Integer, unique=True, nullable=False)
     username = Column(String, nullable=False)
+    email = Column(String)
     avatar_url = Column(String)
     bio = Column(String)
     created_at = Column(String)

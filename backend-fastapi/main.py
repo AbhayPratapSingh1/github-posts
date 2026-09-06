@@ -117,6 +117,8 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     access = create_access_token(user.id, user.username)
     refresh = create_refresh_token(user.id, user.username)
     user_data = {"id": user.id, "username": user.username, "avatar_url": user.avatar_url}
+    if hasattr(user, "email"):
+        user_data["email"] = user.email
     if hasattr(user, "bio"):
         user_data["bio"] = user.bio
     if hasattr(user, "created_at"):
@@ -139,6 +141,8 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         "username": user.username,
         "avatar_url": user.avatar_url,
     }
+    if hasattr(user, "email"):
+        user_data["email"] = user.email
     if hasattr(user, "bio"):
         user_data["bio"] = user.bio
     if hasattr(user, "created_at"):
@@ -226,6 +230,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     avatar_url = gh_user.get("avatar_url")
     bio = gh_user.get("bio", "")
     created_at = gh_user.get("created_at", "")
+    email = gh_user.get("email", "")
 
     if db is not None:
         user = db.query(User).filter(User.github_id == github_id).first()
@@ -233,6 +238,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
             user = User(
                 github_id=github_id,
                 username=username,
+                email=email,
                 avatar_url=avatar_url,
                 bio=bio,
                 created_at=created_at,
@@ -242,6 +248,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
             db.refresh(user)
         else:
             user.username = username
+            user.email = user.email or email
             user.avatar_url = avatar_url
             if bio:
                 user.bio = user.bio or bio
@@ -249,7 +256,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
             db.refresh(user)
     else:
         from auth import _SimpleUser
-        user = _SimpleUser(id=github_id, username=username, avatar_url=avatar_url, bio=bio, created_at=created_at)
+        user = _SimpleUser(id=github_id, username=username, email=email, avatar_url=avatar_url, bio=bio, created_at=created_at)
 
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)

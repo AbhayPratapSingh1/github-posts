@@ -37,9 +37,10 @@ def decode_token(token: str) -> Optional[dict]:
 
 
 class _SimpleUser:
-    def __init__(self, id: int, username: str, avatar_url: str = "", bio: str = "", created_at: str = ""):
+    def __init__(self, id: int, username: str, email: str = "", avatar_url: str = "", bio: str = "", created_at: str = ""):
         self.id = id
         self.username = username
+        self.email = email
         self.avatar_url = avatar_url
         self.bio = bio
         self.created_at = created_at
@@ -48,6 +49,7 @@ class _SimpleUser:
 ADMIN_USER = _SimpleUser(
     id=1,
     username="admin",
+    email="admin@postpanel.local",
     bio="Administrator of Post Panel",
     created_at="2026-01-01T00:00:00Z",
 )

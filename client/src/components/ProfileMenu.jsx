@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { FaSignOutAlt, FaCalendarAlt } from "react-icons/fa"
+import { FaSignOutAlt, FaCalendarAlt, FaEnvelope } from "react-icons/fa"
 import Modal from "./Modal"
 import { useAuth } from "../context/AuthContext"
 
@@ -61,12 +61,18 @@ function ProfileMenu() {
             <h3 className="text-lg font-bold text-fg-900 dark:text-fg-100">
               {user.username}
             </h3>
+            {user.email && (
+              <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-fg-500 dark:text-fg-400">
+                <FaEnvelope className="text-[10px]" />
+                {user.email}
+              </p>
+            )}
             {user.bio ? (
-              <p className="mt-1 text-sm text-fg-500 dark:text-fg-400">
+              <p className="mt-2 text-sm text-fg-500 dark:text-fg-400">
                 {user.bio}
               </p>
             ) : (
-              <p className="mt-1 text-sm text-fg-400 dark:text-fg-500">
+              <p className="mt-2 text-sm text-fg-400 dark:text-fg-500">
                 No bio yet
               </p>
             )}
