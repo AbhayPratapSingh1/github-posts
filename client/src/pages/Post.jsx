@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { FaGithub, FaPlay, FaGlobe, FaArrowUp, FaArrowLeft, FaTrash } from "react-icons/fa"
+import { FaGithub, FaPlay, FaGlobe, FaArrowUp, FaArrowLeft, FaTrash, FaEdit } from "react-icons/fa"
 import { READ_WORD_PER_MINUTE } from "../config/text"
 import { POST_TYPE, findPostById } from "../config/posts"
 import { getPostById, deletePost } from "../api/posts"
@@ -89,12 +89,20 @@ function Post() {
             </a>
           )}
           {user && (
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-2 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
-            >
-              <FaTrash />
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/post/${id}/edit`}
+                className="flex items-center gap-2 rounded-md border border-primary-300 px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-950"
+              >
+                <FaEdit className="text-xs" />
+              </Link>
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                <FaTrash />
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -111,25 +119,27 @@ function Post() {
         <p className="mt-4 max-w-xl text-lg text-fg-600 dark:text-fg-400">
           {post.shortDescription || "No description available."}
         </p>
-        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-fg-500 dark:text-fg-400">
-          {readTime > 0 && <span>Read: {readTime} min</span>}
-          {post.hosted?.url && (
-            <>
-              <span aria-hidden="true">•</span>
-              <span>Hosted on {post.hosted.plateForm || "Unknown"}</span>
-            </>
-          )}
-          {post.type === POST_TYPE.PLAYABLE && (
-            <>
-              <span aria-hidden="true">•</span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
-                Live
-              </span>
-            </>
-          )}
-        </div>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
+        {(readTime > 0 || post.hosted?.url) && (
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-fg-500 dark:text-fg-400">
+            {readTime > 0 && <span>Read: {readTime} min</span>}
+            {post.hosted?.url && (
+              <>
+                <span aria-hidden="true">•</span>
+                <span>Hosted on {post.hosted.plateForm || "Unknown"}</span>
+              </>
+            )}
+            {post.type === POST_TYPE.PLAYABLE && post.hosted?.url && (
+              <>
+                <span aria-hidden="true">•</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
+                  Live
+                </span>
+              </>
+            )}
+          </div>
+        )}
+        <div className="mt-6 flex flex-wrap items-center gap-3">
           {action && (
             <a
               href={action.href}
@@ -252,13 +262,22 @@ function Post() {
             </a>
           )}
           {user && (
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-2.5 rounded-lg border border-red-300 px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
-            >
-              <FaTrash />
-              Delete
-            </button>
+            <div className="flex items-center gap-3">
+              <Link
+                to={`/post/${id}/edit`}
+                className="flex items-center gap-2.5 rounded-lg border border-primary-300 px-6 py-3 text-base font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-950"
+              >
+                <FaEdit />
+                Edit
+              </Link>
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2.5 rounded-lg border border-red-300 px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                <FaTrash />
+                Delete
+              </button>
+            </div>
           )}
         </div>
       </section>
