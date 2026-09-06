@@ -29,15 +29,6 @@ from config import APP_ENV, PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JW
 
 app = FastAPI()
 
-print(f"\n\n\nCORS_ORIGINS configured as: {CORS_ORIGINS}")
-
-@app.middleware("http")
-async def cors_debug_middleware(request: Request, call_next):
-    origin = request.headers.get("origin", "none")
-    print(f"\n[CORS DEBUG] Origin: {origin} | Path: {request.url.path}")
-    response = await call_next(request)
-    return response
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
