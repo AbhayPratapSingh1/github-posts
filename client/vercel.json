@@ -6,10 +6,6 @@
   "installCommand": "npm install",
   "rewrites": [
     {
-      "source": "/api/auth/github/callback",
-      "destination": "https://post-panel-api.onrender.com/api/auth/github/callback"
-    },
-    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
