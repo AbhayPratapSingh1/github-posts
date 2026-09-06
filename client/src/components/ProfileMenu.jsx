@@ -61,14 +61,13 @@ function ProfileMenu() {
             <h3 className="text-lg font-bold text-fg-900 dark:text-fg-100">
               {user.username}
             </h3>
-            {user.bio && (
+            {user.bio ? (
               <p className="mt-1 text-sm text-fg-500 dark:text-fg-400">
                 {user.bio}
               </p>
-            )}
-            {!user.bio && (
-              <p className="mt-1 text-sm text-fg-500 dark:text-fg-400">
-                Administrator of Post Panel
+            ) : (
+              <p className="mt-1 text-sm text-fg-400 dark:text-fg-500">
+                No bio yet
               </p>
             )}
             {user.created_at && (

@@ -37,13 +37,15 @@ def decode_token(token: str) -> Optional[dict]:
 
 
 class _SimpleUser:
-    def __init__(self, id: int, username: str, avatar_url: str = ""):
+    def __init__(self, id: int, username: str, avatar_url: str = "", bio: str = "", created_at: str = ""):
         self.id = id
         self.username = username
         self.avatar_url = avatar_url
+        self.bio = bio
+        self.created_at = created_at
 
 # Hardcoded admin — used when DB has no matching row
-ADMIN_USER = _SimpleUser(id=1, username="admin")
+ADMIN_USER = _SimpleUser(id=1, username="admin", bio="Administrator of Post Panel")
 
 
 def verify_credentials(userid: str, password: str) -> Optional[_SimpleUser]:

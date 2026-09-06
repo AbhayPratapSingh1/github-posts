@@ -217,6 +217,8 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     github_id = gh_user.get("id")
     username = gh_user.get("login")
     avatar_url = gh_user.get("avatar_url")
+    bio = gh_user.get("bio", "")
+    created_at = gh_user.get("created_at", "")
 
     if db is not None:
         user = db.query(User).filter(User.github_id == github_id).first()
@@ -225,13 +227,22 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
                 github_id=github_id,
                 username=username,
                 avatar_url=avatar_url,
+                bio=bio,
+                created_at=created_at,
             )
             db.add(user)
             db.commit()
             db.refresh(user)
+        else:
+            user.username = username
+            user.avatar_url = avatar_url
+            if bio:
+                user.bio = user.bio or bio
+            db.commit()
+            db.refresh(user)
     else:
         from auth import _SimpleUser
-        user = _SimpleUser(id=github_id, username=username, avatar_url=avatar_url)
+        user = _SimpleUser(id=github_id, username=username, avatar_url=avatar_url, bio=bio, created_at=created_at)
 
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
