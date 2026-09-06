@@ -60,7 +60,7 @@ A chronological log of how this project is being built. Each entry describes the
 
 ## 11. Split env files per service
 - Backend: `backend-fastapi/.env.local` / `.env.prod` — `APP_ENV` + `DATABASE_URL`.
-- Frontend: `client/.env.local` / `.env.prod` — `VITE_BACKEND_URL`; `vite.config.js` reads it via `loadEnv` for the `/api` proxy target (falls back to `http://127.0.0.1:8000`).
+- Frontend: `client/.env.local` / `.env.prod` — `VITE_BACKEND_URL`; `vite.config.js` reads it via `loadEnv` for the `/api` proxy target (falls back to `http://127.0.0.1:7180`).
 - Root `.env.local` / `.env.prod` remain for docker-compose.
 
 ## 12. One-command dev environment

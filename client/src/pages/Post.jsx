@@ -1,22 +1,26 @@
 import { useEffect, useState } from "react"
-import { Link, useParams } from "react-router-dom"
+import { Link, useParams, useNavigate } from "react-router-dom"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { FaGithub, FaPlay, FaGlobe, FaArrowUp, FaArrowLeft } from "react-icons/fa"
+import { FaGithub, FaPlay, FaGlobe, FaArrowUp, FaArrowLeft, FaTrash } from "react-icons/fa"
 import { READ_WORD_PER_MINUTE } from "../config/text"
 import { POST_TYPE, findPostById } from "../config/posts"
-import { getPostById } from "../api/posts"
+import { getPostById, deletePost } from "../api/posts"
+import { useAuth } from "../context/AuthContext"
 
 const primaryAction = (post) => {
-  if (post.type === POST_TYPE.PLAYABLE)
+  if (!post) return null
+  if (post.type === POST_TYPE.PLAYABLE && post.hosted?.url)
     return { label: "Play Now", icon: <FaPlay />, href: post.hosted.url }
-  if (post.type === POST_TYPE.HOSTED)
+  if (post.type === POST_TYPE.HOSTED && post.hosted?.url)
     return { label: "Visit Site", icon: <FaGlobe />, href: post.hosted.url }
   return null
 }
 
 function Post() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [post, setPost] = useState(() => findPostById(id))
   const [isLoading, setIsLoading] = useState(true)
 
@@ -28,8 +32,20 @@ function Post() {
       .finally(() => setIsLoading(false))
   }, [id])
 
+  const handleDelete = async () => {
+    const confirm = window.confirm(`Are you sure you want to delete "${post?.title || id}"?`)
+    if (!confirm) return
+    try {
+      await deletePost(id)
+      navigate("/")
+    } catch (err) {
+      alert(err.message || "Failed to delete post")
+    }
+  }
+
   const timeToReadContent = (content) => {
-    return Math.floor(content?.split(" ").length / READ_WORD_PER_MINUTE);
+    if (!content) return 0
+    return Math.floor(content.split(" ").length / READ_WORD_PER_MINUTE)
   }
 
   if (isLoading || !post) {
@@ -47,7 +63,7 @@ function Post() {
         <Link to="/" className="flex items-center gap-2">
           <FaArrowLeft className="text-xs" />
           <span className="inline-block size-2.5 rounded-full bg-primary-500" />
-          <span className="text-sm font-bold tracking-wide uppercase">{post.title}</span>
+          <span className="text-sm font-bold tracking-wide uppercase">{post.title || "Untitled"}</span>
         </Link>
         <div className="flex items-center gap-2">
           {post.github && (
@@ -72,6 +88,14 @@ function Post() {
               {action.label}
             </a>
           )}
+          {user && (
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-2 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+            >
+              <FaTrash />
+            </button>
+          )}
         </div>
       </div>
     </header>
@@ -79,20 +103,20 @@ function Post() {
     <main className="mx-auto max-w-3xl px-4 sm:px-6">
       <section className="py-14 sm:py-20">
         <p className="mb-3 text-xs font-semibold tracking-widest text-primary-600 uppercase dark:text-primary-400">
-          {post.availableAt?.[0]} Game
+          {post.availableAt?.[0] || "N/A"} Game
         </p>
         <h1 className="text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
-          {post.title}
+          {post.title || "Untitled"}
         </h1>
         <p className="mt-4 max-w-xl text-lg text-fg-600 dark:text-fg-400">
-          {post.shortDescription}
+          {post.shortDescription || "No description available."}
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-fg-500 dark:text-fg-400">
-          <span>Read: {readTime} min</span>
+          {readTime > 0 && <span>Read: {readTime} min</span>}
           {post.hosted?.url && (
             <>
               <span aria-hidden="true">•</span>
-              <span>Hosted on {post.hosted.plateForm}</span>
+              <span>Hosted on {post.hosted.plateForm || "Unknown"}</span>
             </>
           )}
           {post.type === POST_TYPE.PLAYABLE && (
@@ -135,16 +159,74 @@ function Post() {
 
       <article className="py-12">
         <div className="prose max-w-none dark:prose-invert">
-          <Markdown remarkPlugins={[remarkGfm]}>
-            {post.description}
-          </Markdown>
+          {post.description ? (
+            /<[a-z][\s\S]*>/i.test(post.description) ? (
+              <div dangerouslySetInnerHTML={{ __html: post.description }} />
+            ) : (
+              <Markdown remarkPlugins={[remarkGfm]}>
+                {post.description}
+              </Markdown>
+            )
+          ) : (
+            <p className="text-fg-500 dark:text-fg-400">No description available.</p>
+          )}
         </div>
       </article>
 
+      <section className="border-t border-bg-200 py-12 dark:border-bg-800">
+        <h2 className="mb-6 text-lg font-bold">Repository Details</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 dark:border-bg-700 dark:bg-bg-900">
+            <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Language</p>
+            <p className="mt-1 text-sm font-medium text-fg-900 dark:text-fg-100">{post.language || "N/A"}</p>
+          </div>
+          <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 dark:border-bg-700 dark:bg-bg-900">
+            <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Owner</p>
+            <p className="mt-1 text-sm font-medium text-fg-900 dark:text-fg-100">{post.githubOwner || "N/A"}</p>
+          </div>
+          <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 dark:border-bg-700 dark:bg-bg-900">
+            <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Default Branch</p>
+            <p className="mt-1 text-sm font-medium text-fg-900 dark:text-fg-100">{post.defaultBranch || "N/A"}</p>
+          </div>
+          <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 dark:border-bg-700 dark:bg-bg-900">
+            <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Last Push</p>
+            <p className="mt-1 text-sm font-medium text-fg-900 dark:text-fg-100">
+              {post.lastPushAt ? new Date(post.lastPushAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "N/A"}
+            </p>
+          </div>
+          <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 dark:border-bg-700 dark:bg-bg-900">
+            <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Created On</p>
+            <p className="mt-1 text-sm font-medium text-fg-900 dark:text-fg-100">
+              {post.dateOfCreation ? new Date(post.dateOfCreation * 1000).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "N/A"}
+            </p>
+          </div>
+        </div>
+        {post.stats && (
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 text-center dark:border-bg-700 dark:bg-bg-900">
+              <p className="text-2xl font-extrabold text-fg-900 dark:text-fg-100">{post.stats.stars ?? "N/A"}</p>
+              <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Stars</p>
+            </div>
+            <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 text-center dark:border-bg-700 dark:bg-bg-900">
+              <p className="text-2xl font-extrabold text-fg-900 dark:text-fg-100">{post.stats.forks ?? "N/A"}</p>
+              <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Forks</p>
+            </div>
+            <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 text-center dark:border-bg-700 dark:bg-bg-900">
+              <p className="text-2xl font-extrabold text-fg-900 dark:text-fg-100">{post.stats.watchers ?? "N/A"}</p>
+              <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Watchers</p>
+            </div>
+            <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 text-center dark:border-bg-700 dark:bg-bg-900">
+              <p className="text-2xl font-extrabold text-fg-900 dark:text-fg-100">{post.stats.openIssues ?? "N/A"}</p>
+              <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Issues</p>
+            </div>
+          </div>
+        )}
+      </section>
+
       <section className="flex flex-col items-center gap-4 border-t border-bg-200 py-16 text-center dark:border-bg-800">
-        <h2 className="text-2xl font-bold">{post.title}</h2>
+        <h2 className="text-2xl font-bold">{post.title || "Untitled"}</h2>
         <p className="max-w-md text-fg-500 dark:text-fg-400">
-          {post.shortDescription}
+          {post.shortDescription || "No description available."}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           {post.github && (
@@ -169,13 +251,22 @@ function Post() {
               {action.label}
             </a>
           )}
+          {user && (
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-2.5 rounded-lg border border-red-300 px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+            >
+              <FaTrash />
+              Delete
+            </button>
+          )}
         </div>
       </section>
     </main>
 
     <footer className="border-t border-bg-200 dark:border-bg-800">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-6 text-sm text-fg-500 sm:px-6 dark:text-fg-400">
-        <p>© {new Date().getFullYear()} {post.title}</p>
+        <p>© {new Date().getFullYear()} {post.title || "Untitled"}</p>
         <a href="#" className="flex items-center gap-1.5 hover:text-fg-900 dark:hover:text-fg-100">
           Back to top
           <FaArrowUp />

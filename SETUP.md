@@ -53,7 +53,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5434/post_panel
 **c) Client — feeds the Vite dev proxy** (`client/.env.local`):
 
 ```bash
-VITE_BACKEND_URL=http://127.0.0.1:8000
+VITE_BACKEND_URL=http://127.0.0.1:7180
 ```
 
 > `APP_ENV` picks the env file: `local` → `.env.local`, `prod` → `.env.prod`.
@@ -75,7 +75,7 @@ pip install -r requirements.txt                  # fastapi, uvicorn, sqlalchemy,
 alembic upgrade head                             # creates the `post` table (via migration b6755bd8cbe8)
 python3 scripts/seed.py                          # loads 16 posts from all_posts.py (idempotent — safe to re-run)
 
-python3 -m uvicorn main:app --reload             # API on http://localhost:8000
+python3 -m uvicorn main:app --reload --port 7180 # API on http://localhost:7180
 ```
 
 Optional venv instead of system pip:
@@ -99,9 +99,9 @@ The Vite dev server proxies `/api/*` to `VITE_BACKEND_URL` (see `vite.config.js`
 ### 3.5 Verify everything
 
 ```bash
-curl http://localhost:8000/api/posts          # 16 posts, JSON
-curl http://localhost:8000/api/posts/fall-ball
-curl -o /dev/null -w "%{http_code}\n" http://localhost:8000/api/posts/nope   # 404
+curl http://localhost:7180/api/posts          # 16 posts, JSON
+curl http://localhost:7180/api/posts/fall-ball
+curl -o /dev/null -w "%{http_code}\n" http://localhost:7180/api/posts/nope   # 404
 
 # via the client proxy:
 curl http://localhost:5176/api/posts          # use your actual Vite port
@@ -164,7 +164,7 @@ Netlify is the same with `npm run build` + `publish dist`.
 
 ### 4.4 Alternative: single-domain (no CORS)
 
-If you prefer serving both on one domain, put the backend behind a reverse proxy that rewrites `/api/*` → backend (e.g. nginx `location /api { proxy_pass http://backend:8000; }`, or Vercel rewrites). Then:
+If you prefer serving both on one domain, put the backend behind a reverse proxy that rewrites `/api/*` → backend (e.g. nginx `location /api { proxy_pass http://backend:7180; }`, or Vercel rewrites). Then:
 - `VITE_BACKEND_URL` stays unset (the client calls same-origin `/api`)
 - No CORS needed
 - Note: `client/.env.prod` currently contains the cross-origin placeholder — with this approach, leave it empty.

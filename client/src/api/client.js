@@ -1,8 +1,12 @@
-const backendUrl = import.meta.env?.VITE_BACKEND_URL
-export const API_BASE = backendUrl ? `${backendUrl}/api` : "/api"
+import { config } from "../config/env"
+
+export const API_BASE = config.apiBase
 
 export const request = async (path, options = {}) => {
-  const res = await fetch(`${API_BASE}${path}`, options)
+  const res = await fetch(`${API_BASE}${path}`, {
+    credentials: "include",
+    ...options,
+  })
   if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`)
   return res.json()
 }

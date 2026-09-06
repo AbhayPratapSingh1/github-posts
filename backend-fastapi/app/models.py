@@ -19,5 +19,17 @@ class Post(Base):
     language = Column(String)
     lastPushAt = Column(String)
     defaultBranch = Column(String)
+    stats = Column(JSON)
+    githubOwner = Column(String)
+
+
+class User(Base):
+    __tablename__ = 'user'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    github_id = Column(Integer, unique=True, nullable=False)
+    username = Column(String, nullable=False)
+    avatar_url = Column(String)
+    created_at = Column(String)
 
 

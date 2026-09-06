@@ -1,13 +1,14 @@
 
-import os
-
-from dotenv import load_dotenv
-from sqlalchemy.orm import  sessionmaker
+import logging
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 
-load_dotenv(f".env.{os.getenv('APP_ENV', 'local')}")
+from config import DATABASE_URL
 
-dbEngine = create_engine(os.environ["DATABASE_URL"])
+log = logging.getLogger(__name__)
+
+dbEngine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(bind=dbEngine, autocommit=False, autoflush=False)
 
@@ -15,5 +16,11 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except OperationalError:
+        log.warning("Database unavailable")
+        yield None
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception:
+            pass

@@ -61,7 +61,7 @@ tell application "iTerm"
 	set allS to sessions of tabObj
 	set s4 to item (count of allS) of allS
 
-	tell found to write text "cd '" & rootPath & "/backend-fastapi' && python3 -m uvicorn main:app --reload"
+	tell found to write text "cd '" & rootPath & "/backend-fastapi' && python3 -m uvicorn main:app --reload --port 7180"
 	tell s2 to write text "cd '" & rootPath & "/client' && npm run dev"
 	tell s3 to write text "cd '" & rootPath & "/client' && pwd"
 	tell s4 to write text "cd '" & rootPath & "/backend-fastapi' && pwd"

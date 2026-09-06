@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { FaGithub, FaPlay } from "react-icons/fa"
+import { FaPlay, FaPlus, FaSignOutAlt, FaGithub } from "react-icons/fa"
 import { getPosts } from "../api/posts"
+import { useAuth } from "../context/AuthContext"
 
 const primaryLabel = (type) => {
   if (type === "playable") return <><FaPlay /> Playable</>
@@ -10,9 +11,9 @@ const primaryLabel = (type) => {
 }
 
 function Home() {
+  const { user, logout } = useAuth()
   const [posts, setPosts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  console.log({posts})
 
   useEffect(() => {
     getPosts()
@@ -28,6 +29,42 @@ function Home() {
           <span className="inline-block size-2.5 rounded-full bg-primary-500" />
           <span className="text-sm font-bold tracking-wide uppercase">Post Panel</span>
         </Link>
+        <div className="flex items-center gap-3">
+          {user ? (
+            <>
+              <Link
+                to="/create"
+                className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+              >
+                <FaPlus className="text-xs" />
+                New Post
+              </Link>
+              <div className="flex items-center gap-2">
+                {user.avatar_url && (
+                  <img
+                    src={user.avatar_url}
+                    alt={user.username}
+                    className="size-8 rounded-full border border-bg-300 dark:border-bg-700"
+                  />
+                )}
+                <span className="hidden text-sm font-medium sm:inline">{user.username}</span>
+              </div>
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 rounded-md border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 hover:bg-bg-100 dark:border-bg-700 dark:text-fg-400 dark:hover:bg-bg-900"
+              >
+                <FaSignOutAlt className="text-xs" />
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="flex items-center gap-2 rounded-lg bg-bg-900 px-4 py-1.5 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
       </div>
     </header>
 
