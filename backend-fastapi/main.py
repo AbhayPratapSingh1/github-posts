@@ -25,7 +25,7 @@ from auth import (
     refresh_access_token,
     require_user,
 )
-from config import PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS
+from config import PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
 
 app = FastAPI()
 
@@ -157,6 +157,79 @@ def refresh(request: Request, db: Session = Depends(get_db)):
         return JSONResponse(status_code=401, content={"error": "Invalid refresh token"})
     response = JSONResponse({"success": True})
     set_session_cookie(response, new_access)
+    return response
+
+@app.get("/api/auth/github")
+def github_login():
+    if not GITHUB_CLIENT_ID:
+        return JSONResponse(status_code=500, content={"error": "GitHub OAuth not configured"})
+    redirect_uri = f"{FRONTEND_URL}/api/auth/github/callback"
+    github_url = (
+        f"https://github.com/login/oauth/authorize"
+        f"?client_id={GITHUB_CLIENT_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope=user:email"
+    )
+    return RedirectResponse(url=github_url)
+
+@app.get("/api/auth/github/callback")
+async def github_callback(code: str = Query(...), db: Session = Depends(get_db)):
+    if not code:
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=no_code")
+
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://github.com/login/oauth/access_token",
+            json={
+                "client_id": GITHUB_CLIENT_ID,
+                "client_secret": GITHUB_CLIENT_SECRET,
+                "code": code,
+            },
+            headers={"Accept": "application/json"},
+        )
+        if token_res.status_code != 200:
+            return RedirectResponse(url=f"{FRONTEND_URL}/login?error=token_exchange_failed")
+        token_data = token_res.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            return RedirectResponse(url=f"{FRONTEND_URL}/login?error=no_access_token")
+
+    async with httpx.AsyncClient() as client:
+        user_res = await client.get(
+            "https://api.github.com/user",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Accept": "application/json",
+            },
+        )
+        if user_res.status_code != 200:
+            return RedirectResponse(url=f"{FRONTEND_URL}/login?error=fetch_user_failed")
+        gh_user = user_res.json()
+
+    github_id = gh_user.get("id")
+    username = gh_user.get("login")
+    avatar_url = gh_user.get("avatar_url")
+
+    if db is not None:
+        user = db.query(User).filter(User.github_id == github_id).first()
+        if not user:
+            user = User(
+                github_id=github_id,
+                username=username,
+                avatar_url=avatar_url,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+    else:
+        from auth import _SimpleUser
+        user = _SimpleUser(id=github_id, username=username, avatar_url=avatar_url)
+
+    access = create_access_token(user.id, user.username)
+    refresh_token = create_refresh_token(user.id, user.username)
+    response = RedirectResponse(url=f"{FRONTEND_URL}")
+    set_session_cookie(response, access)
+    set_refresh_cookie(response, refresh_token)
     return response
 
 # ── Post routes ──────────────────────────────────────────────────────
