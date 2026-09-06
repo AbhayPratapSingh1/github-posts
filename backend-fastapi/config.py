@@ -9,6 +9,7 @@ if _env_file.exists():
     load_dotenv(_env_file)
 
 PORT = int(os.getenv("PORT", "7180"))
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:7180")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5180")
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", FRONTEND_URL).split(",")]
 

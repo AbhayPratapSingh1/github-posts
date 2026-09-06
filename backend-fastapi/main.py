@@ -25,7 +25,7 @@ from auth import (
     refresh_access_token,
     require_user,
 )
-from config import APP_ENV, PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+from config import APP_ENV, PORT, BACKEND_URL, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
 
 app = FastAPI()
 
@@ -175,7 +175,7 @@ def refresh(request: Request, db: Session = Depends(get_db)):
 def github_login():
     if not GITHUB_CLIENT_ID:
         return JSONResponse(status_code=500, content={"error": "GitHub OAuth not configured"})
-    redirect_uri = f"{FRONTEND_URL}/api/auth/github/callback"
+    redirect_uri = f"{BACKEND_URL}/api/auth/github/callback"
     github_url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={GITHUB_CLIENT_ID}"
