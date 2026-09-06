@@ -25,7 +25,7 @@ from auth import (
     refresh_access_token,
     require_user,
 )
-from config import PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+from config import APP_ENV, PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
 
 app = FastAPI()
 
@@ -82,7 +82,7 @@ def set_session_cookie(response, token: str):
         key="session",
         value=token,
         httponly=True,
-        secure=False,
+        secure=APP_ENV == "prod",
         samesite="lax",
         max_age=JWT_ACCESS_EXPIRY_MINUTES * 60,
         path="/",
@@ -93,7 +93,7 @@ def set_refresh_cookie(response, token: str):
         key="refresh_token",
         value=token,
         httponly=True,
-        secure=False,
+        secure=APP_ENV == "prod",
         samesite="lax",
         max_age=JWT_REFRESH_EXPIRY_DAYS * 24 * 60 * 60,
         path="/",
