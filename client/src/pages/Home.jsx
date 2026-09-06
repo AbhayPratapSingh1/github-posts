@@ -17,15 +17,24 @@ function Home() {
   const { addToast } = useToast()
   const [posts, setPosts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isWakingUp, setIsWakingUp] = useState(false)
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) setIsWakingUp(true)
+    }, 3000)
+
     getPosts()
       .then(setPosts)
       .catch(() => {
         setPosts([])
         addToast("Failed to load posts", "error")
       })
-      .finally(() => setIsLoading(false))
+      .finally(() => {
+        setIsLoading(false)
+        setIsWakingUp(false)
+        clearTimeout(timer)
+      })
   }, [])
 
   return <div className="min-h-screen bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
@@ -70,7 +79,16 @@ function Home() {
         A collection of games and tools built for the web.
       </p>
 
-      {isLoading && <p className="mt-10 text-fg-500 dark:text-fg-400">Loading...</p>}
+      {isLoading && (
+        <div className="mt-10 text-center">
+          <p className="text-fg-500 dark:text-fg-400">Loading...</p>
+          {isWakingUp && (
+            <p className="mt-2 text-sm text-fg-400 dark:text-fg-500">
+              Server is waking up, this may take a moment...
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mt-10 space-y-4">
         {posts.map((post) => {
