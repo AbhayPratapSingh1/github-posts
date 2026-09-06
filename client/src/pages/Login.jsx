@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
+import { API_BASE } from "../api/client"
 
 function Login() {
   const { user, loading, login, checkAuth } = useAuth()
@@ -35,7 +36,7 @@ function Login() {
   }
 
   const handleGithubLogin = () => {
-    window.location.href = "/api/auth/github"
+    window.location.href = `${API_BASE}/auth/github`
   }
 
   return (

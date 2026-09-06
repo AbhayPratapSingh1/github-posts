@@ -83,7 +83,7 @@ def set_session_cookie(response, token: str):
         value=token,
         httponly=True,
         secure=APP_ENV == "prod",
-        samesite="lax",
+        samesite="none" if APP_ENV == "prod" else "lax",
         max_age=JWT_ACCESS_EXPIRY_MINUTES * 60,
         path="/",
     )
@@ -94,7 +94,7 @@ def set_refresh_cookie(response, token: str):
         value=token,
         httponly=True,
         secure=APP_ENV == "prod",
-        samesite="lax",
+        samesite="none" if APP_ENV == "prod" else "lax",
         max_age=JWT_REFRESH_EXPIRY_DAYS * 24 * 60 * 60,
         path="/",
     )
