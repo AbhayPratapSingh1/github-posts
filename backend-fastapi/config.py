@@ -23,3 +23,11 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_POST_PANEL", "")
 
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID_POST_PANEL", "")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET_POST_PANEL", "")
+
+
+print("\n\n\nCORS: ", CORS_ORIGINS)
+print("\n\n\nAPP_ENV: ", APP_ENV)
+
+
+console.log("\n\n\nCORS: ",CORS_ORIGINS)
+console.log("\n\n\nAPP_ENV: ",APP_ENV)
