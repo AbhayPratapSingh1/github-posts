@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom"
 import { ToastProvider } from "./context/ToastContext"
+import GoToTop from "./components/GoToTop"
 import Home from "./pages/Home"
 import Post from "./pages/Post"
 import CreatePost from "./pages/CreatePost"
@@ -16,6 +17,7 @@ function App() {
         <Route path="/post/:id/edit" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
         <Route path="/post/:id" element={<Post />} />
       </Routes>
+      <GoToTop />
     </ToastProvider>
   )
 }
