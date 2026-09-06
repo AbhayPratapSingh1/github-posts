@@ -45,7 +45,12 @@ class _SimpleUser:
         self.created_at = created_at
 
 # Hardcoded admin — used when DB has no matching row
-ADMIN_USER = _SimpleUser(id=1, username="admin", bio="Administrator of Post Panel")
+ADMIN_USER = _SimpleUser(
+    id=1,
+    username="admin",
+    bio="Administrator of Post Panel",
+    created_at="2026-01-01T00:00:00Z",
+)
 
 
 def verify_credentials(userid: str, password: str) -> Optional[_SimpleUser]:
