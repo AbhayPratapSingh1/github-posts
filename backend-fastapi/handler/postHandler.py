@@ -24,3 +24,14 @@ class Post_handler:
         db.delete(post)
         db.commit()
         return post
+
+    def update_post(self, id, db, data):
+        post = db.query(Post).filter(Post.id == id).first()
+        if not post:
+            return None
+        for key, value in data.items():
+            if value is not None:
+                setattr(post, key, value)
+        db.commit()
+        db.refresh(post)
+        return post

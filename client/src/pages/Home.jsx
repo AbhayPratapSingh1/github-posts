@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { FaPlay, FaPlus, FaSignOutAlt, FaGithub } from "react-icons/fa"
+import { FaPlay, FaPlus, FaGithub } from "react-icons/fa"
 import { getPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
+import ProfileMenu from "../components/ProfileMenu"
 
 const primaryLabel = (type) => {
   if (type === "playable") return <><FaPlay /> Playable</>
@@ -12,7 +13,7 @@ const primaryLabel = (type) => {
 }
 
 function Home() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const { addToast } = useToast()
   const [posts, setPosts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -44,22 +45,7 @@ function Home() {
                 <FaPlus className="text-xs" />
                 New Post
               </Link>
-              <div className="flex items-center gap-2">
-                {user.avatar_url && (
-                  <img
-                    src={user.avatar_url}
-                    alt={user.username}
-                    className="size-8 rounded-full border border-bg-300 dark:border-bg-700"
-                  />
-                )}
-                <span className="hidden text-sm font-medium sm:inline">{user.username}</span>
-              </div>
-              <button
-                onClick={logout}
-                className="flex items-center gap-1.5 rounded-md border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 hover:bg-bg-100 dark:border-bg-700 dark:text-fg-400 dark:hover:bg-bg-900"
-              >
-                <FaSignOutAlt className="text-xs" />
-              </button>
+              <ProfileMenu />
             </>
           ) : (
             <Link

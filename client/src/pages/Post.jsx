@@ -8,6 +8,7 @@ import { POST_TYPE, findPostById } from "../config/posts"
 import { getPostById, deletePost } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
+import ProfileMenu from "../components/ProfileMenu"
 
 const primaryAction = (post) => {
   if (!post) return null
@@ -108,6 +109,7 @@ function Post() {
               >
                 <FaTrash />
               </button>
+              <ProfileMenu />
             </div>
           )}
         </div>

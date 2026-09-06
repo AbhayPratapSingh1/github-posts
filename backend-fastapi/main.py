@@ -370,6 +370,31 @@ def deletePost(id, request: Request, db: Session = Depends(get_db)):
         )
     return {"message": "Post deleted successfully"}
 
+@app.put('/api/posts/{id}')
+async def updatePost(id, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
+    require_user(request, db)
+
+    data = body.model_dump(exclude_unset=True)
+
+    if body.github:
+        owner, repo = parse_github_url(body.github)
+        if owner and repo:
+            gh = await fetch_github_repo(owner, repo)
+            if gh:
+                data["language"] = data.get("language") or gh.get("language")
+                data["defaultBranch"] = gh.get("defaultBranch", data.get("defaultBranch"))
+                data["lastPushAt"] = gh.get("pushedAt", data.get("lastPushAt"))
+                data["githubOwner"] = gh.get("githubOwner")
+                data["stats"] = gh.get("stats")
+
+    updated = postHandler.update_post(id, db, data)
+    if not updated:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Post ID doesn't exist"}
+        )
+    return updated
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=True)

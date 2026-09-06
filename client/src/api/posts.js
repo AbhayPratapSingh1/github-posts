@@ -11,6 +11,13 @@ export const createPost = (data) =>
     body: JSON.stringify(data),
   })
 
+export const updatePost = (id, data) =>
+  request(`/posts/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+
 export const deletePost = (id) =>
   request(`/posts/${id}`, { method: "DELETE" })
 
