@@ -8,6 +8,7 @@ class Post(Base):
     __tablename__ = 'post'
 
     id = Column(String, primary_key=True)
+    user_id = Column(Integer, nullable=True)
     title = Column(String)
     type = Column(String)
     shortDescription = Column(String)
@@ -30,6 +31,7 @@ class User(Base):
     github_id = Column(Integer, unique=True, nullable=False)
     username = Column(String, nullable=False)
     avatar_url = Column(String)
+    bio = Column(String)
     created_at = Column(String)
 
 

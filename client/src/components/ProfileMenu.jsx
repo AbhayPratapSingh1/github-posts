@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { FaSignOutAlt } from "react-icons/fa"
+import { FaSignOutAlt, FaCalendarAlt } from "react-icons/fa"
 import Modal from "./Modal"
 import { useAuth } from "../context/AuthContext"
 
@@ -8,6 +8,18 @@ function ProfileMenu() {
   const [open, setOpen] = useState(false)
 
   if (!user) return null
+
+  const formatDate = (dateString) => {
+    if (!dateString) return null
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+      })
+    } catch {
+      return null
+    }
+  }
 
   return (
     <>
@@ -49,9 +61,22 @@ function ProfileMenu() {
             <h3 className="text-lg font-bold text-fg-900 dark:text-fg-100">
               {user.username}
             </h3>
-            <p className="mt-1 text-sm text-fg-500 dark:text-fg-400">
-              Administrator of Post Panel. Managing and curating the project showcase.
-            </p>
+            {user.bio && (
+              <p className="mt-1 text-sm text-fg-500 dark:text-fg-400">
+                {user.bio}
+              </p>
+            )}
+            {!user.bio && (
+              <p className="mt-1 text-sm text-fg-500 dark:text-fg-400">
+                Administrator of Post Panel
+              </p>
+            )}
+            {user.created_at && (
+              <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-fg-400 dark:text-fg-500">
+                <FaCalendarAlt className="text-[10px]" />
+                Joined {formatDate(user.created_at)}
+              </p>
+            )}
           </div>
 
           <button

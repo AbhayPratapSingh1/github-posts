@@ -97,18 +97,6 @@ function Post() {
           )}
           {user && (
             <div className="flex items-center gap-2">
-              <Link
-                to={`/post/${id}/edit`}
-                className="flex items-center gap-2 rounded-md border border-primary-300 px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-950"
-              >
-                <FaEdit className="text-xs" />
-              </Link>
-              <button
-                onClick={handleDelete}
-                className="flex items-center gap-2 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
-              >
-                <FaTrash />
-              </button>
               <ProfileMenu />
             </div>
           )}
@@ -269,7 +257,7 @@ function Post() {
               {action.label}
             </a>
           )}
-          {user && (
+          {user && user.id === post.user_id && (
             <div className="flex items-center gap-3">
               <Link
                 to={`/post/${id}/edit`}

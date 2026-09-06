@@ -116,7 +116,12 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         return JSONResponse(status_code=401, content={"error": "Invalid credentials"})
     access = create_access_token(user.id, user.username)
     refresh = create_refresh_token(user.id, user.username)
-    response = JSONResponse({"success": True, "user": {"id": user.id, "username": user.username, "avatar_url": user.avatar_url}})
+    user_data = {"id": user.id, "username": user.username, "avatar_url": user.avatar_url}
+    if hasattr(user, "bio"):
+        user_data["bio"] = user.bio
+    if hasattr(user, "created_at"):
+        user_data["created_at"] = user.created_at
+    response = JSONResponse({"success": True, "user": user_data})
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh)
     return response
@@ -129,13 +134,16 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         user = get_user_from_request(request, None)
     if not user:
         return {"user": None}
-    return {
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "avatar_url": user.avatar_url,
-        }
+    user_data = {
+        "id": user.id,
+        "username": user.username,
+        "avatar_url": user.avatar_url,
     }
+    if hasattr(user, "bio"):
+        user_data["bio"] = user.bio
+    if hasattr(user, "created_at"):
+        user_data["created_at"] = user.created_at
+    return {"user": user_data}
 
 @app.post("/api/auth/logout")
 def logout():
@@ -429,7 +437,7 @@ async def generatePostContent(url: str = Query(..., description="GitHub repo URL
 
 @app.post('/api/posts')
 async def createPost(body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
-    require_user(request, db)
+    user = require_user(request, db)
 
     post_id = slugify(body.title)
     existing = postHandler.get_post_by_id(post_id, db)
@@ -440,6 +448,7 @@ async def createPost(body: CreatePostRequest, request: Request, db: Session = De
         )
     data = body.model_dump()
     data["id"] = post_id
+    data["user_id"] = user.id
     data["dateOfCreation"] = int(time.time())
 
     if body.github:
@@ -464,19 +473,38 @@ async def createPost(body: CreatePostRequest, request: Request, db: Session = De
 
 @app.delete('/api/posts/{id}')
 def deletePost(id, request: Request, db: Session = Depends(get_db)):
-    require_user(request, db)
+    user = require_user(request, db)
 
-    deleted = postHandler.delete_post(id, db)
-    if not deleted:
+    post = postHandler.get_post_by_id(id, db)
+    if not post:
         return JSONResponse(
             status_code=404,
             content={"error": "Post ID doesn't exist"}
         )
+    if post.user_id != user.id:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "Not authorized to delete this post"}
+        )
+
+    postHandler.delete_post(id, db)
     return {"message": "Post deleted successfully"}
 
 @app.put('/api/posts/{id}')
 async def updatePost(id, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
-    require_user(request, db)
+    user = require_user(request, db)
+
+    post = postHandler.get_post_by_id(id, db)
+    if not post:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Post ID doesn't exist"}
+        )
+    if post.user_id != user.id:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "Not authorized to update this post"}
+        )
 
     data = body.model_dump(exclude_unset=True)
 
@@ -492,11 +520,6 @@ async def updatePost(id, body: CreatePostRequest, request: Request, db: Session 
                 data["stats"] = gh.get("stats")
 
     updated = postHandler.update_post(id, db, data)
-    if not updated:
-        return JSONResponse(
-            status_code=404,
-            content={"error": "Post ID doesn't exist"}
-        )
     return updated
 
 if __name__ == "__main__":
