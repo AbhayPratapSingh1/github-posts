@@ -187,8 +187,8 @@ The app can generate post content from GitHub repositories using Google Gemini:
 
 Two separate pieces, deployed independently:
 
-- **Backend** (FastAPI + Postgres) — Railway (recommended)
-- **Frontend** (static Vite build) — Vercel
+- **Backend** (FastAPI + Postgres) — Render (free tier)
+- **Frontend** (static Vite build) — Vercel (free tier)
 
 ### 5.1 Architecture
 
@@ -201,38 +201,57 @@ Two separate pieces, deployed independently:
                       │ API calls
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│                      RAILWAY                            │
+│                      RENDER                             │
 │  Backend (FastAPI + Uvicorn)                            │
-│  https://post-panel-api.up.railway.app                  │
+│  https://post-panel-api.onrender.com                    │
 └─────────────────────┬───────────────────────────────────┘
                       │ Database connection
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│                    RAILWAY POSTGRES                     │
-│  PostgreSQL (built-in)                                  │
+│                    RENDER POSTGRES                      │
+│  PostgreSQL (free tier, 90-day expiry)                  │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Backend on Railway
+### 5.2 Backend on Render
 
-1. **Create a new project** on Railway and connect your GitHub repo
-2. **Add PostgreSQL** service in Railway (built-in, no separate provider needed)
-3. **Set environment variables** in Railway dashboard:
+1. **Sign up** at render.com (no credit card required)
+2. **Create a PostgreSQL database:**
+   - New → PostgreSQL
+   - Name: `post-panel-db`
+   - User: `abhaypratapsingh`
+   - Database: `post_panel`
+   - Plan: Free
+   - Click "Create Database"
+   - Copy the **Internal Database URL**
+
+3. **Create a Web Service:**
+   - New → Web Service
+   - Connect your GitHub repo
+   - Name: `post-panel-api`
+   - Region: Oregon (US West)
+   - Branch: `main`
+   - Runtime: Python
+   - Root Directory: `backend-fastapi`
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `alembic upgrade head && python3 scripts/seed.py && uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - Plan: Free
+
+4. **Set environment variables:**
 
 | Variable | Value |
 |---|---|
 | `APP_ENV` | `prod` |
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (Railway variable reference) |
-| `JWT_SECRET` | strong random string (generate with `openssl rand -hex 32`) |
+| `DATABASE_URL` | (paste Internal Database URL from step 2) |
+| `JWT_SECRET` | (run `openssl rand -hex 32` locally) |
 | `CORS_ORIGINS` | `https://post-panel.vercel.app` |
 | `GEMINI_API_KEY_POST_PANEL` | from ~/.zshrc |
 | `GITHUB_CLIENT_ID_POST_PANEL` | from ~/.zshrc |
 | `GITHUB_CLIENT_SECRET_POST_PANEL` | from ~/.zshrc |
 
-4. **Set root directory** to `backend-fastapi` in Railway service settings
-5. **Deploy** — Railway runs `alembic upgrade head && python3 scripts/seed.py && uvicorn main:app --host 0.0.0.0 --port $PORT` automatically
+5. **Deploy** — Render auto-deploys on push to `main`
 
-**No spin-down on Railway!** Your API stays always-on.
+**Note:** Free tier spins down after 15 min inactivity. First request after sleep takes 30-60s.
 
 ### 5.3 Frontend on Vercel
 
@@ -241,7 +260,7 @@ Two separate pieces, deployed independently:
 
 | Variable | Value |
 |---|---|
-| `VITE_BACKEND_URL` | `https://post-panel-api.up.railway.app` |
+| `VITE_BACKEND_URL` | `https://post-panel-api.onrender.com` |
 
 3. **Deploy** — Vercel builds and deploys automatically
 
@@ -251,27 +270,28 @@ The project includes a CI/CD pipeline that runs on every push to `main`:
 
 **Pipeline stages:**
 1. **Lint & Test** — Runs `npm run lint` and `npm test` on the client
-2. **Deploy Backend** — Deploys to Railway (only on `main` push)
+2. **Deploy Backend** — Deploys to Render (only on `main` push)
 3. **Deploy Frontend** — Deploys to Vercel (only on `main` push)
 
 **Required GitHub Secrets:**
 
 | Secret | How to get |
 |---|---|
-| `RAILWAY_TOKEN` | Railway dashboard → Account settings → Tokens |
+| `RENDER_SERVICE_ID` | Render dashboard → Settings → General → Service ID |
+| `RENDER_API_KEY` | Render dashboard → Account Settings → API Keys |
 | `VERCEL_TOKEN` | Vercel dashboard → Settings → Tokens |
-| `BACKEND_URL` | Your Railway backend URL |
+| `BACKEND_URL` | Your Render backend URL |
 
 **To set up:**
 1. Go to your GitHub repo → Settings → Secrets and variables → Actions
-2. Add the three secrets above
+2. Add the four secrets above
 3. Push to `main` — pipeline runs automatically
 
 ### 5.5 Production checklist
 
-- [ ] Railway project created with PostgreSQL service
-- [ ] Environment variables set in Railway
-- [ ] `alembic upgrade head` runs on deploy (handled by Railway)
+- [ ] Render PostgreSQL database created
+- [ ] Render Web Service created with root directory `backend-fastapi`
+- [ ] Environment variables set in Render
 - [ ] Vercel project created with `VITE_BACKEND_URL` set
 - [ ] GitHub Actions secrets configured
 - [ ] `CORS_ORIGINS` includes Vercel frontend URL
