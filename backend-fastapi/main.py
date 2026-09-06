@@ -218,13 +218,6 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
             return RedirectResponse(url=f"{FRONTEND_URL}/login?error=fetch_user_failed")
         gh_user = user_res.json()
 
-    print("\n" + "="*60)
-    print("GITHUB USER DATA FROM API:")
-    print("="*60)
-    import json
-    print(json.dumps(gh_user, indent=2))
-    print("="*60 + "\n")
-
     github_id = gh_user.get("id")
     username = gh_user.get("login")
     avatar_url = gh_user.get("avatar_url")
