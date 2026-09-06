@@ -187,45 +187,96 @@ The app can generate post content from GitHub repositories using Google Gemini:
 
 Two separate pieces, deployed independently:
 
-- **Backend** (FastAPI + Postgres) — e.g. Render / Railway / Fly.io
-- **Frontend** (static Vite build) — e.g. Vercel / Netlify
+- **Backend** (FastAPI + Postgres) — Railway (recommended)
+- **Frontend** (static Vite build) — Vercel
 
-### 5.1 Backend env (production)
+### 5.1 Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      VERCEL                             │
+│  Frontend (React + Vite)                                │
+│  https://post-panel.vercel.app                          │
+└─────────────────────┬───────────────────────────────────┘
+                      │ API calls
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│                      RAILWAY                            │
+│  Backend (FastAPI + Uvicorn)                            │
+│  https://post-panel-api.up.railway.app                  │
+└─────────────────────┬───────────────────────────────────┘
+                      │ Database connection
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│                    RAILWAY POSTGRES                     │
+│  PostgreSQL (built-in)                                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 5.2 Backend on Railway
+
+1. **Create a new project** on Railway and connect your GitHub repo
+2. **Add PostgreSQL** service in Railway (built-in, no separate provider needed)
+3. **Set environment variables** in Railway dashboard:
 
 | Variable | Value |
 |---|---|
 | `APP_ENV` | `prod` |
-| `DATABASE_URL` | managed Postgres URL |
-| `JWT_SECRET` | strong random string |
-| `CORS_ORIGINS` | comma-separated frontend origins |
-| `GEMINI_API_KEY_POST_PANEL` | your Gemini API key (from ~/.zshrc) |
-| `GITHUB_CLIENT_ID_POST_PANEL` | GitHub OAuth client ID (from ~/.zshrc) |
-| `GITHUB_CLIENT_SECRET_POST_PANEL` | GitHub OAuth client secret (from ~/.zshrc) |
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (Railway variable reference) |
+| `JWT_SECRET` | strong random string (generate with `openssl rand -hex 32`) |
+| `CORS_ORIGINS` | `https://post-panel.vercel.app` |
+| `GEMINI_API_KEY_POST_PANEL` | from ~/.zshrc |
+| `GITHUB_CLIENT_ID_POST_PANEL` | from ~/.zshrc |
+| `GITHUB_CLIENT_SECRET_POST_PANEL` | from ~/.zshrc |
 
-### 5.2 Backend on Render (example)
+4. **Set root directory** to `backend-fastapi` in Railway service settings
+5. **Deploy** — Railway runs `alembic upgrade head && python3 scripts/seed.py && uvicorn main:app --host 0.0.0.0 --port $PORT` automatically
 
-1. Create a **Web Service**: build command `pip install -r requirements.txt`, start command `uvicorn main:app --host 0.0.0.0 --port $PORT`.
-2. Create a **Postgres** database and copy its internal URL into `DATABASE_URL`.
-3. **Pre-deploy command**: `alembic upgrade head && python3 scripts/seed.py`.
-4. Add `CORS_ORIGINS` with your frontend domain.
-5. Deploy — verify `https://<your-app>.onrender.com/api/posts` returns posts.
+**No spin-down on Railway!** Your API stays always-on.
 
-### 5.3 Frontend on Vercel (example)
+### 5.3 Frontend on Vercel
 
-1. Import the repo, root directory: `client/`.
-2. Build command: `npm run build`, output directory: `dist`.
-3. Env var `VITE_BACKEND_URL=https://<your-backend>.onrender.com` — must be set **at build time**.
-4. Deploy — the Home and Post pages now fetch live data from the API.
+1. **Import repo** on Vercel, select `client/` as root directory
+2. **Set environment variable:**
 
-### 5.4 Production checklist
+| Variable | Value |
+|---|---|
+| `VITE_BACKEND_URL` | `https://post-panel-api.up.railway.app` |
 
-- [ ] Managed Postgres reachable from the backend
-- [ ] `alembic upgrade head` ran (table exists)
-- [ ] `python3 scripts/seed.py` executed (or data synced from GitHub)
-- [ ] `VITE_BACKEND_URL` set at frontend build time
-- [ ] `CORS_ORIGINS` includes the frontend origin
-- [ ] `JWT_SECRET` set to a strong random string
-- [ ] `GEMINI_API_KEY_POST_PANEL` set (if using AI generation)
+3. **Deploy** — Vercel builds and deploys automatically
+
+### 5.4 CI/CD Pipeline (GitHub Actions)
+
+The project includes a CI/CD pipeline that runs on every push to `main`:
+
+**Pipeline stages:**
+1. **Lint & Test** — Runs `npm run lint` and `npm test` on the client
+2. **Deploy Backend** — Deploys to Railway (only on `main` push)
+3. **Deploy Frontend** — Deploys to Vercel (only on `main` push)
+
+**Required GitHub Secrets:**
+
+| Secret | How to get |
+|---|---|
+| `RAILWAY_TOKEN` | Railway dashboard → Account settings → Tokens |
+| `VERCEL_TOKEN` | Vercel dashboard → Settings → Tokens |
+| `BACKEND_URL` | Your Railway backend URL |
+
+**To set up:**
+1. Go to your GitHub repo → Settings → Secrets and variables → Actions
+2. Add the three secrets above
+3. Push to `main` — pipeline runs automatically
+
+### 5.5 Production checklist
+
+- [ ] Railway project created with PostgreSQL service
+- [ ] Environment variables set in Railway
+- [ ] `alembic upgrade head` runs on deploy (handled by Railway)
+- [ ] Vercel project created with `VITE_BACKEND_URL` set
+- [ ] GitHub Actions secrets configured
+- [ ] `CORS_ORIGINS` includes Vercel frontend URL
+- [ ] `JWT_SECRET` set to strong random string
+- [ ] GitHub OAuth callback URL updated to production frontend URL
 
 ## 6. Troubleshooting
 
