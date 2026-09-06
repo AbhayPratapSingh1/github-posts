@@ -103,7 +103,7 @@ function Post() {
     <main className="mx-auto max-w-3xl px-4 sm:px-6">
       <section className="py-14 sm:py-20">
         <p className="mb-3 text-xs font-semibold tracking-widest text-primary-600 uppercase dark:text-primary-400">
-          {post.availableAt?.[0] || "N/A"} Game
+          {post.availableAt?.[0] || "N/A"}
         </p>
         <h1 className="text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
           {post.title || "Untitled"}

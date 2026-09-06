@@ -22,3 +22,15 @@ export const getGithubInfo = async (url) => {
   }
   return res.json()
 }
+
+export const generatePostContent = async (url) => {
+  const res = await fetch(`${API_BASE}/github/generate?url=${encodeURIComponent(url)}`, {
+    method: "POST",
+    credentials: "include",
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `Failed to generate content (${res.status})`)
+  }
+  return res.json()
+}

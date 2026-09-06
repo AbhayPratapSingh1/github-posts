@@ -17,3 +17,8 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localho
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = int(os.getenv("JWT_EXPIRY_DAYS", "30"))
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_POST_PANEL", "")
+
+GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID_POST_PANEL", "")
+GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET_POST_PANEL", "")

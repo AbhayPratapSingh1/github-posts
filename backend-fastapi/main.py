@@ -1,6 +1,8 @@
 import os
 import time
 import re
+import json
+import markdown as md
 from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlparse
@@ -21,7 +23,7 @@ from auth import (
     get_user_from_request,
     require_user,
 )
-from config import PORT, FRONTEND_URL, CORS_ORIGINS
+from config import PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY
 
 app = FastAPI()
 
@@ -176,6 +178,150 @@ async def getGithubInfo(url: str = Query(..., description="GitHub repo URL")):
             "openIssues": data.get("open_issues_count", 0),
         },
     }
+
+async def fetch_readme(owner: str, repo: str) -> str:
+    """Fetch the README content from a GitHub repo."""
+    for ext in ("md", "MD", "markdown", "txt"):
+        url = f"https://raw.githubusercontent.com/{owner}/{repo}/HEAD/README.{ext}"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=10.0)
+            if resp.status_code == 200:
+                return resp.text[:4000]
+    return ""
+
+async def generate_with_gemini(repo_data: dict, readme: str) -> dict:
+    """Call Gemini API to generate post content from repo data."""
+    prompt = f"""You are a technical blog writer for a project showcase site. Given a GitHub repository, generate a post.
+
+Repository: {repo_data.get('githubOwner')}/{repo_data.get('name', '')}
+Language: {repo_data.get('language', 'N/A')}
+Description: {repo_data.get('description', 'N/A')}
+Stars: {repo_data.get('stats', {}).get('stars', 0)}
+Forks: {repo_data.get('stats', {}).get('forks', 0)}
+
+README:
+{readme[:3000]}
+
+Generate a JSON object with these fields:
+- "title": Short catchy project name (max 50 chars)
+- "shortDescription": One-line summary for a card (max 100 chars). Must be a single sentence.
+- "description": Must be plain Markdown (NOT HTML). Follow this exact structure:
+  First line: A brief intro paragraph (2-3 sentences) describing what the project is.
+  Then a blank line, then sections in this order:
+
+## Gameplay
+- Bullet point explaining how to play or use it
+- 3-5 bullet points
+
+## Features
+- Bullet point for each key feature
+- 3-5 bullet points
+
+## Tech Stack
+- **LibraryName** - what it does
+- List the main technologies used
+
+Keep each bullet point short (one sentence). Do not use HTML tags. Do not use code blocks for the description itself.
+
+- "type": One of "playable", "hosted", or "none"
+- "availableAt": Array like ["web"] or ["web", "mobile"]
+
+Return ONLY valid JSON, no markdown fences. The description field must be plain markdown with no HTML tags."""
+
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 4096,
+        },
+    }
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(api_url, json=payload, timeout=30.0)
+        if resp.status_code != 200:
+            raise Exception(f"Gemini API error: {resp.status_code}")
+        data = resp.json()
+
+    text = data["candidates"][0]["content"]["parts"][0]["text"]
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+
+    # Extract JSON object from the response
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1:
+        raise Exception("No JSON object found in response")
+    json_str = text[start:end + 1]
+
+    # Fix common JSON issues from LLM output:
+    # 1. Unescaped newlines inside string values
+    # 2. Control characters
+    def fix_json_strings(s):
+        result = []
+        in_string = False
+        i = 0
+        while i < len(s):
+            c = s[i]
+            if c == '"' and (i == 0 or s[i - 1] != '\\'):
+                in_string = not in_string
+                result.append(c)
+            elif in_string and c == '\n':
+                result.append('\\n')
+            elif in_string and c == '\r':
+                pass  # skip \r
+            elif in_string and c == '\t':
+                result.append('\\t')
+            else:
+                result.append(c)
+            i += 1
+        return ''.join(result)
+
+    json_str = fix_json_strings(json_str)
+    result = json.loads(json_str)
+
+    # Convert markdown description to HTML for Quill.js
+    if "description" in result and result["description"]:
+        result["description"] = md.markdown(result["description"])
+
+    return result
+
+@app.post('/api/github/generate')
+async def generatePostContent(url: str = Query(..., description="GitHub repo URL")):
+    owner, repo = parse_github_url(url)
+    if not owner or not repo:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Invalid GitHub URL"}
+        )
+
+    if not GEMINI_API_KEY:
+        return JSONResponse(
+            status_code=500,
+            content={"error": "GEMINI_API_KEY not configured on the server"}
+        )
+
+    repo_data = await fetch_github_repo(owner, repo)
+    if not repo_data:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Repository not found"}
+        )
+
+    repo_data["name"] = repo
+    readme = await fetch_readme(owner, repo)
+    if not readme:
+        readme = repo_data.get("description") or "No README available for this repository."
+
+    try:
+        generated = await generate_with_gemini(repo_data, readme)
+        return generated
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to generate content: {str(e)}"}
+        )
 
 @app.post('/api/posts')
 async def createPost(body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):

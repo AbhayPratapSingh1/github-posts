@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { FaArrowLeft, FaSpinner, FaCheck } from "react-icons/fa"
 import ReactQuill from "react-quill-new"
 import "react-quill-new/dist/quill.snow.css"
-import { createPost, getGithubInfo } from "../api/posts"
+import { createPost, getGithubInfo, generatePostContent } from "../api/posts"
 
 const inputClass =
   "w-full rounded-lg border border-bg-300 bg-bg-50 px-4 py-2.5 text-sm text-fg-900 outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
@@ -27,6 +27,8 @@ function CreatePost() {
   const [githubInfo, setGithubInfo] = useState(null)
   const [githubLoading, setGithubLoading] = useState(false)
   const [githubStatus, setGithubStatus] = useState(null)
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState(null)
   const debounceRef = useRef(null)
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -54,6 +56,29 @@ function CreatePost() {
 
     return () => clearTimeout(debounceRef.current)
   }, [form.github])
+
+  const handleGenerate = async () => {
+    if (!form.github) return
+    setGenerating(true)
+    setGenerateError(null)
+    try {
+      const data = await generatePostContent(form.github)
+      setForm((f) => ({
+        ...f,
+        title: data.title || f.title,
+        shortDescription: data.shortDescription || f.shortDescription,
+        description: data.description || f.description,
+        type: data.type || f.type,
+        availableAt: Array.isArray(data.availableAt)
+          ? data.availableAt.join(", ")
+          : f.availableAt,
+      }))
+    } catch (err) {
+      setGenerateError(err.message || "Failed to generate content")
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -180,6 +205,24 @@ function CreatePost() {
                   <span><strong className="text-fg-900 dark:text-fg-100">Stars:</strong> {githubInfo.stats?.stars}</span>
                   <span><strong className="text-fg-900 dark:text-fg-100">Forks:</strong> {githubInfo.stats?.forks}</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  className="mt-3 flex items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100 disabled:opacity-50 dark:border-primary-700 dark:bg-primary-950 dark:text-primary-300 dark:hover:bg-primary-900"
+                >
+                  {generating ? (
+                    <>
+                      <FaSpinner className="animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    "Generate with AI"
+                  )}
+                </button>
+                {generateError && (
+                  <p className="mt-2 text-xs text-red-500">{generateError}</p>
+                )}
               </div>
             )}
           </div>
