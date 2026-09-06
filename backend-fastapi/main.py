@@ -18,12 +18,14 @@ from handler.postHandler import Post_handler
 from database import get_db
 from app.models import User
 from auth import (
-    create_token,
+    create_access_token,
+    create_refresh_token,
     verify_credentials,
     get_user_from_request,
+    refresh_access_token,
     require_user,
 )
-from config import PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY
+from config import PORT, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS
 
 app = FastAPI()
 
@@ -75,14 +77,25 @@ async def fetch_github_repo(owner: str, repo: str):
             return resp.json()
     return None
 
-def set_session_cookie(response: RedirectResponse, token: str):
+def set_session_cookie(response, token: str):
     response.set_cookie(
         key="session",
         value=token,
         httponly=True,
         secure=False,
         samesite="lax",
-        max_age=30 * 24 * 60 * 60,
+        max_age=JWT_ACCESS_EXPIRY_MINUTES * 60,
+        path="/",
+    )
+
+def set_refresh_cookie(response, token: str):
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=JWT_REFRESH_EXPIRY_DAYS * 24 * 60 * 60,
         path="/",
     )
 
@@ -101,9 +114,11 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = verify_credentials(body.userid, body.password)
     if not user:
         return JSONResponse(status_code=401, content={"error": "Invalid credentials"})
-    token = create_token(user.id, user.username)
+    access = create_access_token(user.id, user.username)
+    refresh = create_refresh_token(user.id, user.username)
     response = JSONResponse({"success": True, "user": {"id": user.id, "username": user.username, "avatar_url": user.avatar_url}})
-    set_session_cookie(response, token)
+    set_session_cookie(response, access)
+    set_refresh_cookie(response, refresh)
     return response
 
 @app.get("/api/auth/me")
@@ -126,6 +141,22 @@ def get_me(request: Request, db: Session = Depends(get_db)):
 def logout():
     response = JSONResponse({"message": "Logged out"})
     response.delete_cookie(key="session", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
+    return response
+
+@app.post("/api/auth/refresh")
+def refresh(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("refresh_token")
+    if not token:
+        return JSONResponse(status_code=401, content={"error": "No refresh token"})
+    try:
+        new_access = refresh_access_token(token, db)
+    except Exception:
+        new_access = None
+    if not new_access:
+        return JSONResponse(status_code=401, content={"error": "Invalid refresh token"})
+    response = JSONResponse({"success": True})
+    set_session_cookie(response, new_access)
     return response
 
 # ── Post routes ──────────────────────────────────────────────────────
