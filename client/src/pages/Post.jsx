@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { FaGithub, FaPlay, FaGlobe, FaArrowUp, FaArrowLeft, FaTrash, FaEdit } from "react-icons/fa"
+import { FaGithub, FaPlay, FaGlobe, FaArrowUp, FaTrash, FaEdit } from "react-icons/fa"
 import { READ_WORD_PER_MINUTE } from "../config/text"
 import { POST_TYPE, findPostById } from "../config/posts"
 import { getPostById, deletePost } from "../api/posts"
@@ -82,7 +82,6 @@ function Post() {
     <header className="sticky top-0 z-10 border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
-            <FaArrowLeft className="text-xs" />
             <Logo className="size-7" />
             <span className="text-sm font-bold tracking-wide uppercase">{post.title || "Untitled"}</span>
           </Link>
