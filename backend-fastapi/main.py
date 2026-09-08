@@ -265,7 +265,19 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     print(f"\n[DEBUG GitHub Callback] Tokens created for user: {user.username} (id={user.id})")
     print(f"[DEBUG GitHub Callback] Redirecting to: {FRONTEND_URL}")
     print(f"[DEBUG GitHub Callback] APP_ENV: {APP_ENV}")
-    response = RedirectResponse(url=f"{FRONTEND_URL}")
+
+    from fastapi.responses import HTMLResponse
+    html = f"""<!DOCTYPE html>
+<html>
+<head><title>Redirecting...</title></head>
+<body>
+<p>Signed in as {username}. Redirecting...</p>
+<script>
+  window.location.href = "{FRONTEND_URL}";
+</script>
+</body>
+</html>"""
+    response = HTMLResponse(content=html)
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     print(f"[DEBUG GitHub Callback] Cookies set on response")
