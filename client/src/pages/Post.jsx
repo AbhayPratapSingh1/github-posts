@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -10,6 +10,7 @@ import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
+import ImageLightbox from "../components/ImageLightbox"
 
 const primaryAction = (post) => {
   if (!post) return null
@@ -27,6 +28,8 @@ function Post() {
   const { addToast } = useToast()
   const [post, setPost] = useState(() => findPostById(id))
   const [isLoading, setIsLoading] = useState(true)
+  const [lightbox, setLightbox] = useState({ open: false, startIndex: 0, images: [] })
+  const articleRef = useRef(null)
 
   useEffect(() => {
     setIsLoading(true)
@@ -55,6 +58,16 @@ function Post() {
     if (!content) return 0
     return Math.floor(content.split(" ").length / READ_WORD_PER_MINUTE)
   }
+
+  const handleImageClick = useCallback((e) => {
+    const img = e.target.closest("img")
+    if (!img || !articleRef.current) return
+    const allImages = Array.from(articleRef.current.querySelectorAll("img"))
+    const index = allImages.indexOf(img)
+    if (index === -1) return
+    const sources = allImages.map((i) => i.src)
+    setLightbox({ open: true, startIndex: index, images: sources })
+  }, [])
 
   if (isLoading || !post) {
     return <div className="min-h-screen grid place-items-center bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
@@ -164,13 +177,20 @@ function Post() {
 
       <hr className="border-bg-200 dark:border-bg-800" />
 
-      <article className="py-12">
+      <article className="py-12" ref={articleRef} onClick={handleImageClick}>
         <div className="prose max-w-none dark:prose-invert">
           {post.description ? (
             /<[a-z][\s\S]*>/i.test(post.description) ? (
               <div dangerouslySetInnerHTML={{ __html: post.description }} />
             ) : (
-              <Markdown remarkPlugins={[remarkGfm]}>
+              <Markdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  img: ({ node, ...props }) => (
+                    <img {...props} className="rounded-lg cursor-pointer hover:opacity-85 transition-opacity" />
+                  ),
+                }}
+              >
                 {post.description}
               </Markdown>
             )
@@ -289,6 +309,14 @@ function Post() {
         </a>
       </div>
     </footer>
+
+    {lightbox.open && (
+      <ImageLightbox
+        images={lightbox.images}
+        startIndex={lightbox.startIndex}
+        onClose={() => setLightbox({ open: false, startIndex: 0, images: [] })}
+      />
+    )}
   </div>
 }
 

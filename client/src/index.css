@@ -88,3 +88,32 @@
   --color-primary-900: #dbeafe;
   --color-primary-950: #eff6ff;
 }
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.prose img:hover {
+  opacity: 0.85;
+}
+
+.prose p:has(img) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.prose p:has(img) img {
+  max-width: calc(50% - 0.375rem);
+  flex: 1 1 200px;
+}
+
+@media (max-width: 640px) {
+  .prose p:has(img) img {
+    max-width: 100%;
+  }
+}
