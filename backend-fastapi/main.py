@@ -37,6 +37,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def startup_db():
+    """Add missing columns on startup."""
+    from database import engine
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS github_token VARCHAR"))
+            conn.commit()
+        except Exception:
+            pass
+
 
 postHandler = Post_handler()
 
