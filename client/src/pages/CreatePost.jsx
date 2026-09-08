@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { FaArrowLeft, FaSpinner, FaCheck } from "react-icons/fa"
-import ReactQuill from "react-quill-new"
-import "react-quill-new/dist/quill.snow.css"
 import { createPost, updatePost, getGithubInfo, getPostById, generatePostContent } from "../api/posts"
 import { useToast } from "../context/ToastContext"
 import Logo from "../components/Logo"
+
+const ReactQuill = lazy(() => import("react-quill-new"))
 
 const inputClass =
   "w-full rounded-lg border border-bg-300 bg-bg-50 px-4 py-2.5 text-sm text-fg-900 outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
@@ -299,23 +299,31 @@ function CreatePost() {
           <div>
             <label className={labelClass}>Description *</label>
             <div className="rounded-lg border border-bg-300 dark:border-bg-700 overflow-hidden">
-              <ReactQuill
-                theme="snow"
-                value={form.description}
-                onChange={(val) => setForm((f) => ({ ...f, description: val }))}
-                placeholder="Write the full project description here..."
-                modules={{
-                  toolbar: [
-                    [{ header: [1, 2, 3, false] }],
-                    ["bold", "italic", "underline", "strike"],
-                    [{ list: "ordered" }, { list: "bullet" }],
-                    ["blockquote", "code-block"],
-                    ["link", "image"],
-                    ["clean"],
-                  ],
-                }}
-                className="bg-bg-50 dark:bg-bg-900 text-fg-900 dark:text-fg-100"
-              />
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center h-40 bg-bg-50 dark:bg-bg-900 text-fg-400">
+                    <FaSpinner className="animate-spin mr-2" /> Loading editor...
+                  </div>
+                }
+              >
+                <ReactQuill
+                  theme="snow"
+                  value={form.description}
+                  onChange={(val) => setForm((f) => ({ ...f, description: val }))}
+                  placeholder="Write the full project description here..."
+                  modules={{
+                    toolbar: [
+                      [{ header: [1, 2, 3, false] }],
+                      ["bold", "italic", "underline", "strike"],
+                      [{ list: "ordered" }, { list: "bullet" }],
+                      ["blockquote", "code-block"],
+                      ["link", "image"],
+                      ["clean"],
+                    ],
+                  }}
+                  className="bg-bg-50 dark:bg-bg-900 text-fg-900 dark:text-fg-100"
+                />
+              </Suspense>
             </div>
           </div>
 
