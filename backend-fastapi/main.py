@@ -66,7 +66,17 @@ def parse_github_url(url: str):
         return parts[0], parts[1]
     return None, None
 
+_github_cache: dict[str, tuple[float, dict]] = {}
+GITHUB_CACHE_TTL = 3600  # 1 hour
+
 async def fetch_github_repo(owner: str, repo: str):
+    cache_key = f"{owner}/{repo}"
+    now = time.time()
+    if cache_key in _github_cache:
+        cached_at, cached_data = _github_cache[cache_key]
+        if now - cached_at < GITHUB_CACHE_TTL:
+            return cached_data
+
     headers = {"Accept": "application/vnd.github.v3+json"}
     gh_token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_CLIENT_SECRET")
     if gh_token:
@@ -78,7 +88,9 @@ async def fetch_github_repo(owner: str, repo: str):
             timeout=10.0,
         )
         if resp.status_code == 200:
-            return resp.json()
+            data = resp.json()
+            _github_cache[cache_key] = (now, data)
+            return data
         print(f"[DEBUG fetch_github_repo] GitHub API {resp.status_code} for {owner}/{repo}")
     return None
 
