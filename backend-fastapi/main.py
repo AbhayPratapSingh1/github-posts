@@ -282,9 +282,9 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
 <p>Signed in as {username}. Redirecting...</p>
 <script>
   try {{
-    localStorage.setItem("session_token", "{access}");
-    localStorage.setItem("refresh_token", "{refresh_token}");
-    localStorage.setItem("user", {_json.dumps(_json.dumps(user_data))});
+    window.__AUTH_TOKEN__ = "{access}";
+    window.__REFRESH_TOKEN__ = "{refresh_token}";
+    window.__USER__ = {_json.dumps(user_data)};
   }} catch(e) {{ console.error(e); }}
   window.location.href = "{FRONTEND_URL}";
 </script>

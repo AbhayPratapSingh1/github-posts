@@ -3,6 +3,18 @@ import { API_BASE } from "../api/client"
 
 const AuthContext = createContext(null)
 
+function getToken() {
+  return localStorage.getItem("session_token")
+}
+
+function setToken(token) {
+  localStorage.setItem("session_token", token)
+}
+
+function clearToken() {
+  localStorage.removeItem("session_token")
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -10,8 +22,7 @@ export function AuthProvider({ children }) {
   const checkAuth = useCallback(async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("session_token")
-      console.log("[DEBUG checkAuth] Token in localStorage:", !!token)
+      const token = getToken()
       const headers = {}
       if (token) headers["Authorization"] = `Bearer ${token}`
       const res = await fetch(`${API_BASE}/auth/me`, {
@@ -19,17 +30,13 @@ export function AuthProvider({ children }) {
         headers,
       })
       const data = await res.json()
-      console.log("[DEBUG checkAuth] Data:", data)
       if (data.user) {
         setUser(data.user)
       } else {
-        localStorage.removeItem("session_token")
-        localStorage.removeItem("refresh_token")
-        localStorage.removeItem("user")
+        clearToken()
         setUser(null)
       }
-    } catch (e) {
-      console.log("[DEBUG checkAuth] Error:", e)
+    } catch {
       setUser(null)
     } finally {
       setLoading(false)
@@ -37,7 +44,17 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    checkAuth()
+    if (window.__AUTH_TOKEN__) {
+      setToken(window.__AUTH_TOKEN__)
+      localStorage.setItem("refresh_token", window.__REFRESH_TOKEN__)
+      localStorage.setItem("user", JSON.stringify(window.__USER__))
+      setUser(window.__USER__)
+      delete window.__AUTH_TOKEN__
+      delete window.__REFRESH_TOKEN__
+      delete window.__USER__
+    } else {
+      checkAuth()
+    }
   }, [checkAuth])
 
   const login = async (userid, password) => {
@@ -64,7 +81,7 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore
     }
-    localStorage.removeItem("session_token")
+    clearToken()
     localStorage.removeItem("refresh_token")
     localStorage.removeItem("user")
     setUser(null)
