@@ -11,7 +11,8 @@ function authHeaders(extra = {}) {
   return headers
 }
 
-export const getPosts = () => request("/posts")
+export const getPosts = (offset = 0, limit = 12) =>
+  request(`/posts?offset=${offset}&limit=${limit}`)
 
 export const getPostById = (id) => request(`/posts/${id}`)
 

@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { FaPlay, FaPlus, FaGithub } from "react-icons/fa"
+import { FaPlay, FaPlus, FaGithub, FaSpinner } from "react-icons/fa"
 import { getPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
+
+const PAGE_SIZE = 12
 
 const primaryLabel = (type) => {
   if (type === "playable") return <><FaPlay /> Playable</>
@@ -19,24 +21,49 @@ function Home() {
   const [posts, setPosts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isWakingUp, setIsWakingUp] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const offsetRef = useRef(0)
+  const sentinelRef = useRef(null)
+
+  const loadPosts = useCallback(async (offset, append = false) => {
+    try {
+      const data = await getPosts(offset, PAGE_SIZE)
+      const newPosts = data.posts || []
+      setPosts((prev) => append ? [...prev, ...newPosts] : newPosts)
+      setHasMore(offset + PAGE_SIZE < data.total)
+      offsetRef.current = offset + PAGE_SIZE
+    } catch {
+      addToast("Failed to load posts", "error")
+    }
+  }, [addToast])
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoading) setIsWakingUp(true)
     }, 3000)
 
-    getPosts()
-      .then(setPosts)
-      .catch(() => {
-        setPosts([])
-        addToast("Failed to load posts", "error")
-      })
-      .finally(() => {
-        setIsLoading(false)
-        setIsWakingUp(false)
-        clearTimeout(timer)
-      })
-  }, [])
+    loadPosts(0).finally(() => {
+      setIsLoading(false)
+      setIsWakingUp(false)
+      clearTimeout(timer)
+    })
+  }, [loadPosts])
+
+  useEffect(() => {
+    if (!sentinelRef.current) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !isLoading) {
+          setLoadingMore(true)
+          loadPosts(offsetRef.current, true).finally(() => setLoadingMore(false))
+        }
+      },
+      { rootMargin: "200px" }
+    )
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, isLoading, loadPosts])
 
   return <div className="min-h-screen bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
     <header className="border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
@@ -128,6 +155,18 @@ function Home() {
             </Link>
           )
         })}
+      </div>
+
+      <div ref={sentinelRef} className="py-4">
+        {loadingMore && (
+          <div className="flex items-center justify-center gap-2 text-fg-400">
+            <FaSpinner className="animate-spin" />
+            <span className="text-sm">Loading more...</span>
+          </div>
+        )}
+        {!hasMore && posts.length > 0 && (
+          <p className="text-center text-sm text-fg-400">You've reached the end</p>
+        )}
       </div>
     </main>
   </div>

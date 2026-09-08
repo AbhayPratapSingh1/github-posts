@@ -329,9 +329,12 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
 # ── Post routes ──────────────────────────────────────────────────────
 
 @app.get('/api/posts')
-def getPosts(db: Session = Depends(get_db)):
+def getPosts(request: Request, db: Session = Depends(get_db)):
     try:
-        return postHandler.get_all_posts(db)
+        offset = int(request.query_params.get("offset", 0))
+        limit = int(request.query_params.get("limit", 12))
+        limit = min(limit, 50)
+        return postHandler.get_all_posts(db, offset=offset, limit=limit)
     except Exception:
         return posts
 
