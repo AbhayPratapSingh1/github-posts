@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { FaGithub, FaPlay, FaGlobe, FaArrowUp, FaTrash, FaEdit } from "react-icons/fa"
+import { FaGithub, FaPlay, FaGlobe, FaTrash, FaEdit } from "react-icons/fa"
 import { READ_WORD_PER_MINUTE } from "../config/text"
 import { POST_TYPE, findPostById } from "../config/posts"
 import { getPostById, deletePost } from "../api/posts"
@@ -302,10 +302,6 @@ function Post() {
     <footer className="border-t border-bg-200 dark:border-bg-800">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-6 text-sm text-fg-500 sm:px-6 dark:text-fg-400">
         <p>© {new Date().getFullYear()} {post.title || "Untitled"}</p>
-        <a href="#" className="flex items-center gap-1.5 hover:text-fg-900 dark:hover:text-fg-100">
-          Back to top
-          <FaArrowUp />
-        </a>
       </div>
     </footer>
 
