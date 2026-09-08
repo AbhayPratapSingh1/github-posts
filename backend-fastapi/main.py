@@ -145,7 +145,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         return JSONResponse(status_code=401, content={"error": "Invalid credentials"})
     access = create_access_token(user.id, user.username)
     refresh = create_refresh_token(user.id, user.username)
-    user_data = {"id": user.id, "username": user.username or f"user_{user.id}", "avatar_url": user.avatar_url}
+    user_data = {"id": user.id, "username": user.username or f"user_{user.id}", "name": getattr(user, "name", "") or "", "avatar_url": user.avatar_url}
     if hasattr(user, "github_id"):
         user_data["github_id"] = user.github_id
     if hasattr(user, "email"):
@@ -178,6 +178,7 @@ def get_me(request: Request, db: Session = Depends(get_db)):
     user_data = {
         "id": user.id,
         "username": user.username or f"user_{user.id}",
+        "name": getattr(user, "name", "") or "",
         "avatar_url": user.avatar_url,
         "github_id": user.github_id if hasattr(user, "github_id") else None,
     }
@@ -263,6 +264,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
 
     github_id = gh_user.get("id")
     username = gh_user.get("login")
+    name = gh_user.get("name", "")
     avatar_url = gh_user.get("avatar_url")
     bio = gh_user.get("bio", "")
     created_at = gh_user.get("created_at", "")
@@ -274,6 +276,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
             user = User(
                 github_id=github_id,
                 username=username,
+                name=name,
                 email=email,
                 avatar_url=avatar_url,
                 bio=bio,
@@ -285,6 +288,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
             db.refresh(user)
         else:
             user.username = username
+            user.name = name or user.name
             user.email = user.email or email
             user.avatar_url = avatar_url
             user.github_token = access_token
@@ -307,6 +311,8 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     import json as _json
 
     user_data = {"id": user.id, "username": user.username or f"user_{user.id}", "avatar_url": getattr(user, "avatar_url", "")}
+    if hasattr(user, "name"):
+        user_data["name"] = getattr(user, "name", "") or ""
     if hasattr(user, "github_id"):
         user_data["github_id"] = user.github_id
     if hasattr(user, "email"):

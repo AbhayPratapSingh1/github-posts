@@ -30,12 +30,12 @@ function ProfileMenu() {
         {user.avatar_url ? (
           <img
             src={user.avatar_url}
-            alt={user.username}
+            alt={user.name || user.username}
             className="size-8 rounded-full"
           />
         ) : (
           <span className="flex size-8 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white">
-            {user.username?.[0]?.toUpperCase() || "?"}
+            {(user.name || user.username)?.[0]?.toUpperCase() || "?"}
           </span>
         )}
       </button>
@@ -46,12 +46,12 @@ function ProfileMenu() {
             {user.avatar_url ? (
               <img
                 src={user.avatar_url}
-                alt={user.username}
+                alt={user.name || user.username}
                 className="size-20 rounded-full border-4 border-primary-500 shadow-lg"
               />
             ) : (
               <span className="flex size-20 items-center justify-center rounded-full border-4 border-primary-500 bg-primary-600 text-2xl font-bold text-white shadow-lg">
-                {user.username?.[0]?.toUpperCase() || "?"}
+                {(user.name || user.username)?.[0]?.toUpperCase() || "?"}
               </span>
             )}
             <span className="absolute bottom-0 right-0 size-4 rounded-full border-2 border-bg-50 bg-emerald-500 dark:border-bg-900" />
@@ -59,11 +59,11 @@ function ProfileMenu() {
 
           <div className="text-center">
             <h3 className="text-lg font-bold text-fg-900 dark:text-fg-100">
-              {user.username}
+              {user.name || user.username}
             </h3>
-            {user.github_id && (
+            {user.username && (
               <p className="mt-0.5 text-xs text-fg-400 dark:text-fg-500">
-                ID: {user.github_id}
+                @{user.username}
               </p>
             )}
             {user.email && (
