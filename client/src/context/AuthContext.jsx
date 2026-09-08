@@ -63,7 +63,8 @@ export function AuthProvider({ children }) {
 
     if (token && userB64) {
       try {
-        const userData = JSON.parse(atob(userB64))
+        const decoded = decodeURIComponent(userB64)
+        const userData = JSON.parse(atob(decoded))
         console.log("[DEBUG AuthContext] Decoded user from URL:", userData)
         setToken(token)
         localStorage.setItem("refresh_token", refresh || "")
