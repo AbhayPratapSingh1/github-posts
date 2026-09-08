@@ -44,14 +44,22 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    if (window.__AUTH_TOKEN__) {
-      setToken(window.__AUTH_TOKEN__)
-      localStorage.setItem("refresh_token", window.__REFRESH_TOKEN__)
-      localStorage.setItem("user", JSON.stringify(window.__USER__))
-      setUser(window.__USER__)
-      delete window.__AUTH_TOKEN__
-      delete window.__REFRESH_TOKEN__
-      delete window.__USER__
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get("token")
+    const refresh = params.get("refresh")
+    const userB64 = params.get("user")
+
+    if (token && userB64) {
+      try {
+        const userData = JSON.parse(atob(userB64))
+        setToken(token)
+        localStorage.setItem("refresh_token", refresh || "")
+        localStorage.setItem("user", JSON.stringify(userData))
+        setUser(userData)
+        window.history.replaceState({}, "", window.location.pathname)
+      } catch {
+        checkAuth()
+      }
     } else {
       checkAuth()
     }

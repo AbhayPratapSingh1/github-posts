@@ -267,7 +267,10 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     print(f"[DEBUG GitHub Callback] APP_ENV: {APP_ENV}")
 
     from fastapi.responses import HTMLResponse
+    from urllib.parse import urlencode
+    import base64
     import json as _json
+
     user_data = {"id": user.id, "username": user.username, "avatar_url": getattr(user, "avatar_url", "")}
     if hasattr(user, "email"):
         user_data["email"] = user.email
@@ -275,22 +278,12 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
         user_data["bio"] = user.bio
     if hasattr(user, "created_at"):
         user_data["created_at"] = user.created_at
-    html = f"""<!DOCTYPE html>
-<html>
-<head><title>Redirecting...</title></head>
-<body>
-<p>Signed in as {username}. Redirecting...</p>
-<script>
-  try {{
-    window.__AUTH_TOKEN__ = "{access}";
-    window.__REFRESH_TOKEN__ = "{refresh_token}";
-    window.__USER__ = {_json.dumps(user_data)};
-  }} catch(e) {{ console.error(e); }}
-  window.location.href = "{FRONTEND_URL}";
-</script>
-</body>
-</html>"""
-    response = HTMLResponse(content=html)
+
+    user_b64 = base64.urlsafe_b64encode(_json.dumps(user_data).encode()).decode()
+    params = urlencode({"token": access, "refresh": refresh_token, "user": user_b64})
+    redirect_url = f"{FRONTEND_URL}?{params}"
+
+    response = RedirectResponse(url=redirect_url)
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     print(f"[DEBUG GitHub Callback] Cookies set on response")
