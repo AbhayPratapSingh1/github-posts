@@ -10,14 +10,24 @@ export function AuthProvider({ children }) {
   const checkAuth = useCallback(async () => {
     setLoading(true)
     try {
-      console.log("[DEBUG checkAuth] API_BASE:", API_BASE)
-      console.log("[DEBUG checkAuth] Fetching:", `${API_BASE}/auth/me`)
-      const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" })
-      console.log("[DEBUG checkAuth] Response status:", res.status)
-      console.log("[DEBUG checkAuth] Response headers:", Object.fromEntries(res.headers.entries()))
+      const token = localStorage.getItem("session_token")
+      console.log("[DEBUG checkAuth] Token in localStorage:", !!token)
+      const headers = {}
+      if (token) headers["Authorization"] = `Bearer ${token}`
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        credentials: "include",
+        headers,
+      })
       const data = await res.json()
-      console.log("[DEBUG checkAuth] Data received:", data)
-      setUser(data.user)
+      console.log("[DEBUG checkAuth] Data:", data)
+      if (data.user) {
+        setUser(data.user)
+      } else {
+        localStorage.removeItem("session_token")
+        localStorage.removeItem("refresh_token")
+        localStorage.removeItem("user")
+        setUser(null)
+      }
     } catch (e) {
       console.log("[DEBUG checkAuth] Error:", e)
       setUser(null)
@@ -54,6 +64,9 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore
     }
+    localStorage.removeItem("session_token")
+    localStorage.removeItem("refresh_token")
+    localStorage.removeItem("user")
     setUser(null)
   }
 

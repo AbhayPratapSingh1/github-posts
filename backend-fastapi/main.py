@@ -267,12 +267,25 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     print(f"[DEBUG GitHub Callback] APP_ENV: {APP_ENV}")
 
     from fastapi.responses import HTMLResponse
+    import json as _json
+    user_data = {"id": user.id, "username": user.username, "avatar_url": getattr(user, "avatar_url", "")}
+    if hasattr(user, "email"):
+        user_data["email"] = user.email
+    if hasattr(user, "bio"):
+        user_data["bio"] = user.bio
+    if hasattr(user, "created_at"):
+        user_data["created_at"] = user.created_at
     html = f"""<!DOCTYPE html>
 <html>
 <head><title>Redirecting...</title></head>
 <body>
 <p>Signed in as {username}. Redirecting...</p>
 <script>
+  try {{
+    localStorage.setItem("session_token", "{access}");
+    localStorage.setItem("refresh_token", "{refresh_token}");
+    localStorage.setItem("user", {_json.dumps(_json.dumps(user_data))});
+  }} catch(e) {{ console.error(e); }}
   window.location.href = "{FRONTEND_URL}";
 </script>
 </body>

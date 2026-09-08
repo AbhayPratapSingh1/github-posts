@@ -64,6 +64,10 @@ def verify_credentials(userid: str, password: str) -> Optional[_SimpleUser]:
 def get_user_from_request(request: Request, db: Optional[Session]) -> Optional[User]:
     token = request.cookies.get("session")
     if not token:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
         return None
     payload = decode_token(token)
     if not payload:
