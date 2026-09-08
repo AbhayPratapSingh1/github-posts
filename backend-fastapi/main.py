@@ -269,8 +269,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     print(f"[DEBUG GitHub Callback] Redirecting to: {FRONTEND_URL}")
     print(f"[DEBUG GitHub Callback] APP_ENV: {APP_ENV}")
 
-    from urllib.parse import urlencode
-    import base64
+    from urllib.parse import urlencode, quote
     import json as _json
 
     user_data = {"id": user.id, "username": user.username, "avatar_url": getattr(user, "avatar_url", "")}
@@ -281,8 +280,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     if hasattr(user, "created_at"):
         user_data["created_at"] = user.created_at
 
-    user_b64 = base64.urlsafe_b64encode(_json.dumps(user_data).encode()).decode()
-    params = urlencode({"token": access, "refresh": refresh_token, "user": user_b64})
+    params = urlencode({"token": access, "refresh": refresh_token, "user": quote(_json.dumps(user_data))})
     redirect_url = f"{FRONTEND_URL}?{params}"
     print(f"[DEBUG GitHub Callback] Redirect URL (first 150 chars): {redirect_url[:150]}...")
 

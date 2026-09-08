@@ -63,12 +63,11 @@ export function AuthProvider({ children }) {
       const params = new URLSearchParams(window.location.search)
       const token = params.get("token")
       const refresh = params.get("refresh")
-      const userB64 = params.get("user")
+      const userJson = params.get("user")
 
-      if (token && userB64) {
+      if (token && userJson) {
         try {
-          const decoded = decodeURIComponent(userB64)
-          const userData = JSON.parse(atob(decoded))
+          const userData = JSON.parse(decodeURIComponent(userJson))
           setToken(token)
           localStorage.setItem("refresh_token", refresh || "")
           localStorage.setItem("user", JSON.stringify(userData))
@@ -86,7 +85,6 @@ export function AuthProvider({ children }) {
       }
     } catch (e) {
       console.error("[AuthContext] Auth init failed:", e)
-      addToast("Something went wrong during sign-in.", "error")
       setLoading(false)
     }
   }, [checkAuth, addToast])
