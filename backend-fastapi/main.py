@@ -67,14 +67,19 @@ def parse_github_url(url: str):
     return None, None
 
 async def fetch_github_repo(owner: str, repo: str):
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    gh_token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_CLIENT_SECRET")
+    if gh_token:
+        headers["Authorization"] = f"token {gh_token}"
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"https://api.github.com/repos/{owner}/{repo}",
-            headers={"Accept": "application/vnd.github.v3+json"},
+            headers=headers,
             timeout=10.0,
         )
         if resp.status_code == 200:
             return resp.json()
+        print(f"[DEBUG fetch_github_repo] GitHub API {resp.status_code} for {owner}/{repo}")
     return None
 
 def set_session_cookie(response, token: str):
@@ -348,10 +353,14 @@ async def getGithubInfo(url: str = Query(..., description="GitHub repo URL")):
 
 async def fetch_readme(owner: str, repo: str) -> str:
     """Fetch the README content from a GitHub repo."""
+    gh_token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_CLIENT_SECRET")
+    headers = {}
+    if gh_token:
+        headers["Authorization"] = f"token {gh_token}"
     for ext in ("md", "MD", "markdown", "txt"):
         url = f"https://raw.githubusercontent.com/{owner}/{repo}/HEAD/README.{ext}"
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=10.0)
+            resp = await client.get(url, headers=headers, timeout=10.0)
             if resp.status_code == 200:
                 return resp.text[:4000]
     return ""
