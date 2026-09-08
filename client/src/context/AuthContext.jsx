@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { API_BASE } from "../api/client"
+import { useToast } from "./ToastContext"
 
 const AuthContext = createContext(null)
 
@@ -15,32 +16,42 @@ function clearToken() {
   localStorage.removeItem("session_token")
 }
 
+function clearAuth() {
+  localStorage.removeItem("session_token")
+  localStorage.removeItem("refresh_token")
+  localStorage.removeItem("user")
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { addToast } = useToast()
 
   const checkAuth = useCallback(async () => {
     setLoading(true)
     try {
       const token = getToken()
-      const hasToken = !!token
       const headers = {}
       if (token) headers["Authorization"] = `Bearer ${token}`
-      console.log("[DEBUG AuthContext] checkAuth → hasToken:", hasToken, "| header present:", !!headers["Authorization"])
       const res = await fetch(`${API_BASE}/auth/me`, {
         credentials: "include",
         headers,
       })
+      if (!res.ok) {
+        clearAuth()
+        setUser(null)
+        return
+      }
       const data = await res.json()
-      console.log("[DEBUG AuthContext] /auth/me response:", data.user ? `user=${data.user.username}` : "null")
       if (data.user) {
         setUser(data.user)
       } else {
-        clearToken()
+        clearAuth()
         setUser(null)
       }
     } catch (e) {
-      console.log("[DEBUG AuthContext] checkAuth error:", e)
+      console.error("[AuthContext] checkAuth failed:", e)
+      clearAuth()
       setUser(null)
     } finally {
       setLoading(false)
@@ -48,63 +59,74 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    const url = window.location.href
-    console.log("[DEBUG AuthContext] Current URL:", url)
-    const params = new URLSearchParams(window.location.search)
-    const token = params.get("token")
-    const refresh = params.get("refresh")
-    const userB64 = params.get("user")
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const token = params.get("token")
+      const refresh = params.get("refresh")
+      const userB64 = params.get("user")
 
-    console.log("[DEBUG AuthContext] URL params - token:", token ? token.substring(0, 50) + "..." : "null")
-    console.log("[DEBUG AuthContext] URL params - user:", userB64 ? "present" : "null")
-
-    if (token && userB64) {
-      try {
-        const decoded = decodeURIComponent(userB64)
-        const userData = JSON.parse(atob(decoded))
-        setToken(token)
-        localStorage.setItem("refresh_token", refresh || "")
-        localStorage.setItem("user", JSON.stringify(userData))
-        setUser(userData)
-        window.history.replaceState({}, "", window.location.pathname)
-        console.log("[DEBUG AuthContext] ✅ OAuth success — user:", userData.username, "| token stored:", !!token)
-      } catch (e) {
-        console.log("[DEBUG AuthContext] ❌ Failed to decode user from URL:", e.message)
+      if (token && userB64) {
+        try {
+          const decoded = decodeURIComponent(userB64)
+          const userData = JSON.parse(atob(decoded))
+          setToken(token)
+          localStorage.setItem("refresh_token", refresh || "")
+          localStorage.setItem("user", JSON.stringify(userData))
+          setUser(userData)
+          window.history.replaceState({}, "", window.location.pathname)
+          addToast(`Signed in as ${userData.username}`, "success")
+        } catch (e) {
+          console.error("[AuthContext] OAuth decode failed:", e)
+          addToast("Sign-in failed. Please try again.", "error")
+          window.history.replaceState({}, "", window.location.pathname)
+          checkAuth()
+        }
+      } else {
         checkAuth()
       }
-    } else {
-      console.log("[DEBUG AuthContext] No URL params → calling checkAuth (token in localStorage:", !!getToken(), ")")
-      checkAuth()
+    } catch (e) {
+      console.error("[AuthContext] Auth init failed:", e)
+      addToast("Something went wrong during sign-in.", "error")
+      setLoading(false)
     }
-  }, [checkAuth])
+  }, [checkAuth, addToast])
 
   const login = async (userid, password) => {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ userid, password }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setUser(data.user)
-      return true
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userid, password }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setUser(data.user)
+        return true
+      }
+      addToast(data.error || "Login failed", "error")
+      return false
+    } catch (e) {
+      console.error("[AuthContext] login failed:", e)
+      addToast("Login failed. Please try again.", "error")
+      return false
     }
-    return false
   }
 
   const logout = async () => {
     try {
+      const token = getToken()
+      const headers = {}
+      if (token) headers["Authorization"] = `Bearer ${token}`
       await fetch(`${API_BASE}/auth/logout`, {
         method: "POST",
         credentials: "include",
+        headers,
       })
     } catch {
       // ignore
     }
-    clearToken()
-    localStorage.removeItem("refresh_token")
-    localStorage.removeItem("user")
+    clearAuth()
     setUser(null)
   }
 
