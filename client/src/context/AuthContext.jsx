@@ -10,10 +10,16 @@ export function AuthProvider({ children }) {
   const checkAuth = useCallback(async () => {
     setLoading(true)
     try {
+      console.log("[DEBUG checkAuth] API_BASE:", API_BASE)
+      console.log("[DEBUG checkAuth] Fetching:", `${API_BASE}/auth/me`)
       const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" })
+      console.log("[DEBUG checkAuth] Response status:", res.status)
+      console.log("[DEBUG checkAuth] Response headers:", Object.fromEntries(res.headers.entries()))
       const data = await res.json()
+      console.log("[DEBUG checkAuth] Data received:", data)
       setUser(data.user)
-    } catch {
+    } catch (e) {
+      console.log("[DEBUG checkAuth] Error:", e)
       setUser(null)
     } finally {
       setLoading(false)

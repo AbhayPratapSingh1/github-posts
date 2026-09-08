@@ -36,7 +36,9 @@ function Login() {
   }
 
   const handleGithubLogin = () => {
-    window.location.href = `${API_BASE}/auth/github`
+    const url = `${API_BASE}/auth/github`
+    console.log("[DEBUG handleGithubLogin] Redirecting to:", url)
+    window.location.href = url
   }
 
   return (

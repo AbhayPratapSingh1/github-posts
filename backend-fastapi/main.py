@@ -130,10 +130,16 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/auth/me")
 def get_me(request: Request, db: Session = Depends(get_db)):
+    cookies = dict(request.cookies)
+    print(f"\n[DEBUG /auth/me] Cookies received: {list(cookies.keys())}")
+    print(f"[DEBUG /auth/me] Session cookie present: {'session' in cookies}")
+    print(f"[DEBUG /auth/me] Origin: {request.headers.get('origin', 'none')}")
     try:
         user = get_user_from_request(request, db)
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG /auth/me] Exception: {e}")
         user = get_user_from_request(request, None)
+    print(f"[DEBUG /auth/me] User found: {user is not None}")
     if not user:
         return {"user": None}
     user_data = {
@@ -186,6 +192,9 @@ def github_login():
 
 @app.get("/api/auth/github/callback")
 async def github_callback(code: str = Query(...), db: Session = Depends(get_db)):
+    print(f"\n[DEBUG GitHub Callback] Code received: {code[:8]}...")
+    print(f"[DEBUG GitHub Callback] BACKEND_URL: {BACKEND_URL}")
+    print(f"[DEBUG GitHub Callback] FRONTEND_URL: {FRONTEND_URL}")
     if not code:
         return RedirectResponse(url=f"{FRONTEND_URL}/login?error=no_code")
 
@@ -253,9 +262,13 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
 
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
+    print(f"\n[DEBUG GitHub Callback] Tokens created for user: {user.username} (id={user.id})")
+    print(f"[DEBUG GitHub Callback] Redirecting to: {FRONTEND_URL}")
+    print(f"[DEBUG GitHub Callback] APP_ENV: {APP_ENV}")
     response = RedirectResponse(url=f"{FRONTEND_URL}")
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
+    print(f"[DEBUG GitHub Callback] Cookies set on response")
     return response
 
 # ── Post routes ──────────────────────────────────────────────────────

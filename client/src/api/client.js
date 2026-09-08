@@ -14,6 +14,7 @@ const refreshToken = async () => {
 }
 
 export const request = async (path, options = {}) => {
+  console.log("[DEBUG request]", `${API_BASE}${path}`)
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
     ...options,
