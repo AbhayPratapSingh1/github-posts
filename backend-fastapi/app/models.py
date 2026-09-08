@@ -34,5 +34,6 @@ class User(Base):
     avatar_url = Column(String)
     bio = Column(String)
     created_at = Column(String)
+    github_token = Column(String)
 
 

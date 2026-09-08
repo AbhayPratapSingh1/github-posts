@@ -69,7 +69,7 @@ def parse_github_url(url: str):
 _github_cache: dict[str, tuple[float, dict]] = {}
 GITHUB_CACHE_TTL = 3600  # 1 hour
 
-async def fetch_github_repo(owner: str, repo: str):
+async def fetch_github_repo(owner: str, repo: str, user_token: str = None):
     cache_key = f"{owner}/{repo}"
     now = time.time()
     if cache_key in _github_cache:
@@ -78,9 +78,9 @@ async def fetch_github_repo(owner: str, repo: str):
             return cached_data
 
     headers = {"Accept": "application/vnd.github.v3+json"}
-    gh_token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_CLIENT_SECRET")
-    if gh_token:
-        headers["Authorization"] = f"token {gh_token}"
+    token = user_token or os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_CLIENT_SECRET")
+    if token:
+        headers["Authorization"] = f"token {token}"
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"https://api.github.com/repos/{owner}/{repo}",
@@ -266,6 +266,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
                 avatar_url=avatar_url,
                 bio=bio,
                 created_at=created_at,
+                github_token=access_token,
             )
             db.add(user)
             db.commit()
@@ -274,6 +275,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
             user.username = username
             user.email = user.email or email
             user.avatar_url = avatar_url
+            user.github_token = access_token
             if bio:
                 user.bio = user.bio or bio
             db.commit()
@@ -335,14 +337,16 @@ def getPostById(id, db: Session = Depends(get_db)):
     return post
 
 @app.get('/api/github/info')
-async def getGithubInfo(url: str = Query(..., description="GitHub repo URL")):
+async def getGithubInfo(request: Request, url: str = Query(..., description="GitHub repo URL"), db: Session = Depends(get_db)):
     owner, repo = parse_github_url(url)
     if not owner or not repo:
         return JSONResponse(
             status_code=400,
             content={"error": "Invalid GitHub URL. Expected format: https://github.com/owner/repo"}
         )
-    data = await fetch_github_repo(owner, repo)
+    user = get_user_from_request(request, db)
+    user_token = getattr(user, "github_token", None) if user else None
+    data = await fetch_github_repo(owner, repo, user_token)
     if not data:
         return JSONResponse(
             status_code=404,
@@ -476,7 +480,7 @@ Return ONLY valid JSON, no markdown fences. The description field must be plain 
     return result
 
 @app.post('/api/github/generate')
-async def generatePostContent(url: str = Query(..., description="GitHub repo URL")):
+async def generatePostContent(request: Request, url: str = Query(..., description="GitHub repo URL"), db: Session = Depends(get_db)):
     owner, repo = parse_github_url(url)
     if not owner or not repo:
         return JSONResponse(
@@ -490,7 +494,9 @@ async def generatePostContent(url: str = Query(..., description="GitHub repo URL
             content={"error": "GEMINI_API_KEY not configured on the server"}
         )
 
-    repo_data = await fetch_github_repo(owner, repo)
+    user = get_user_from_request(request, db)
+    user_token = getattr(user, "github_token", None) if user else None
+    repo_data = await fetch_github_repo(owner, repo, user_token)
     if not repo_data:
         return JSONResponse(
             status_code=404,
