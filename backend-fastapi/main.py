@@ -116,7 +116,9 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         return JSONResponse(status_code=401, content={"error": "Invalid credentials"})
     access = create_access_token(user.id, user.username)
     refresh = create_refresh_token(user.id, user.username)
-    user_data = {"id": user.id, "username": user.username, "avatar_url": user.avatar_url}
+    user_data = {"id": user.id, "username": user.username or f"user_{user.id}", "avatar_url": user.avatar_url}
+    if hasattr(user, "github_id"):
+        user_data["github_id"] = user.github_id
     if hasattr(user, "email"):
         user_data["email"] = user.email
     if hasattr(user, "bio"):
@@ -146,8 +148,9 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         return {"user": None}
     user_data = {
         "id": user.id,
-        "username": user.username,
+        "username": user.username or f"user_{user.id}",
         "avatar_url": user.avatar_url,
+        "github_id": user.github_id if hasattr(user, "github_id") else None,
     }
     if hasattr(user, "email"):
         user_data["email"] = user.email
@@ -272,7 +275,9 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     from urllib.parse import urlencode, quote
     import json as _json
 
-    user_data = {"id": user.id, "username": user.username, "avatar_url": getattr(user, "avatar_url", "")}
+    user_data = {"id": user.id, "username": user.username or f"user_{user.id}", "avatar_url": getattr(user, "avatar_url", "")}
+    if hasattr(user, "github_id"):
+        user_data["github_id"] = user.github_id
     if hasattr(user, "email"):
         user_data["email"] = user.email
     if hasattr(user, "bio"):

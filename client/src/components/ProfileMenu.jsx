@@ -61,6 +61,11 @@ function ProfileMenu() {
             <h3 className="text-lg font-bold text-fg-900 dark:text-fg-100">
               {user.username}
             </h3>
+            {user.github_id && (
+              <p className="mt-0.5 text-xs text-fg-400 dark:text-fg-500">
+                ID: {user.github_id}
+              </p>
+            )}
             {user.email && (
               <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-fg-500 dark:text-fg-400">
                 <FaEnvelope className="text-[10px]" />
