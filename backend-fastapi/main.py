@@ -90,7 +90,7 @@ async def fetch_github_repo(owner: str, repo: str, user_token: str = None):
             return cached_data
 
     headers = {"Accept": "application/vnd.github.v3+json"}
-    token = user_token or os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_CLIENT_SECRET")
+    token = user_token or os.getenv("GITHUB_TOKEN")
     if token:
         headers["Authorization"] = f"token {token}"
     async with httpx.AsyncClient() as client:
@@ -103,7 +103,7 @@ async def fetch_github_repo(owner: str, repo: str, user_token: str = None):
             data = resp.json()
             _github_cache[cache_key] = (now, data)
             return data
-        print(f"[DEBUG fetch_github_repo] GitHub API {resp.status_code} for {owner}/{repo}")
+        print(f"[DEBUG fetch_github_repo] GitHub API {resp.status_code} for {owner}/{repo} (token={'user' if user_token else os.getenv('GITHUB_TOKEN', 'none')})")
     return None
 
 def set_session_cookie(response, token: str):
@@ -358,11 +358,14 @@ async def getGithubInfo(request: Request, url: str = Query(..., description="Git
         )
     user = get_user_from_request(request, db)
     user_token = getattr(user, "github_token", None) if user else None
+    username = getattr(user, "username", "anonymous") if user else "anonymous"
+    print(f"[DEBUG /github/info] user={username}, has_user_token={bool(user_token)}")
     data = await fetch_github_repo(owner, repo, user_token)
     if not data:
+        print(f"[DEBUG /github/info] FAILED for {owner}/{repo} (user={username}, has_token={bool(user_token)})")
         return JSONResponse(
             status_code=404,
-            content={"error": "Repository not found or rate-limited"}
+            content={"error": "Repository not found or rate-limited. If rate-limited, try logging out and back in to refresh your GitHub token."}
         )
     return {
         "language": data.get("language"),
@@ -379,9 +382,9 @@ async def getGithubInfo(request: Request, url: str = Query(..., description="Git
         },
     }
 
-async def fetch_readme(owner: str, repo: str) -> str:
+async def fetch_readme(owner: str, repo: str, user_token: str = None) -> str:
     """Fetch the README content from a GitHub repo."""
-    gh_token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_CLIENT_SECRET")
+    gh_token = user_token or os.getenv("GITHUB_TOKEN")
     headers = {}
     if gh_token:
         headers["Authorization"] = f"token {gh_token}"
@@ -516,7 +519,7 @@ async def generatePostContent(request: Request, url: str = Query(..., descriptio
         )
 
     repo_data["name"] = repo
-    readme = await fetch_readme(owner, repo)
+    readme = await fetch_readme(owner, repo, user_token)
     if not readme:
         readme = repo_data.get("description") or "No README available for this repository."
 
