@@ -9,6 +9,7 @@ import { getPostById, deletePost } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
+import Logo from "../components/Logo"
 
 const primaryAction = (post) => {
   if (!post) return null
@@ -67,11 +68,11 @@ function Post() {
   return <div className="min-h-screen bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
     <header className="sticky top-0 z-10 border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <FaArrowLeft className="text-xs" />
-          <span className="inline-block size-2.5 rounded-full bg-primary-500" />
-          <span className="text-sm font-bold tracking-wide uppercase">{post.title || "Untitled"}</span>
-        </Link>
+          <Link to="/" className="flex items-center gap-2">
+            <FaArrowLeft className="text-xs" />
+            <Logo className="size-7" />
+            <span className="text-sm font-bold tracking-wide uppercase">{post.title || "Untitled"}</span>
+          </Link>
         <div className="flex items-center gap-2">
           {post.github && (
             <a

@@ -5,6 +5,7 @@ import ReactQuill from "react-quill-new"
 import "react-quill-new/dist/quill.snow.css"
 import { createPost, updatePost, getGithubInfo, getPostById, generatePostContent } from "../api/posts"
 import { useToast } from "../context/ToastContext"
+import Logo from "../components/Logo"
 
 const inputClass =
   "w-full rounded-lg border border-bg-300 bg-bg-50 px-4 py-2.5 text-sm text-fg-900 outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
@@ -154,7 +155,7 @@ function CreatePost() {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
             <FaArrowLeft className="text-xs" />
-            <span className="inline-block size-2.5 rounded-full bg-primary-500" />
+            <Logo className="size-7" />
             <span className="text-sm font-bold tracking-wide uppercase">Post Panel</span>
           </Link>
         </div>

@@ -4,6 +4,7 @@ import { useToast } from "../context/ToastContext"
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { API_BASE } from "../api/client"
+import Logo from "../components/Logo"
 
 function Login() {
   const { user, loading, login, checkAuth } = useAuth()
@@ -45,7 +46,8 @@ function Login() {
     <div className="min-h-screen grid place-items-center bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
       <div className="w-full max-w-sm space-y-8 px-4">
         <div className="text-center">
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight">Post Panel</h1>
+          <Logo className="mx-auto size-14" />
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight">Post Panel</h1>
           <p className="mt-2 text-fg-500 dark:text-fg-400">
             Sign in to manage your project showcase
           </p>
