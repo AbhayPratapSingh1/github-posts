@@ -23,27 +23,24 @@ export function AuthProvider({ children }) {
     setLoading(true)
     try {
       const token = getToken()
-      console.log("[DEBUG AuthContext] checkAuth called, token:", token ? token.substring(0, 50) + "..." : "null")
+      const hasToken = !!token
       const headers = {}
       if (token) headers["Authorization"] = `Bearer ${token}`
-      console.log("[DEBUG AuthContext] Fetching:", `${API_BASE}/auth/me`, "headers:", headers)
+      console.log("[DEBUG AuthContext] checkAuth → hasToken:", hasToken, "| header present:", !!headers["Authorization"])
       const res = await fetch(`${API_BASE}/auth/me`, {
         credentials: "include",
         headers,
       })
-      console.log("[DEBUG AuthContext] Response status:", res.status)
       const data = await res.json()
-      console.log("[DEBUG AuthContext] Response data:", data)
+      console.log("[DEBUG AuthContext] /auth/me response:", data.user ? `user=${data.user.username}` : "null")
       if (data.user) {
         setUser(data.user)
-        console.log("[DEBUG AuthContext] User set:", data.user.username)
       } else {
         clearToken()
         setUser(null)
-        console.log("[DEBUG AuthContext] No user, cleared token")
       }
     } catch (e) {
-      console.log("[DEBUG AuthContext] Error:", e)
+      console.log("[DEBUG AuthContext] checkAuth error:", e)
       setUser(null)
     } finally {
       setLoading(false)
@@ -65,19 +62,18 @@ export function AuthProvider({ children }) {
       try {
         const decoded = decodeURIComponent(userB64)
         const userData = JSON.parse(atob(decoded))
-        console.log("[DEBUG AuthContext] Decoded user from URL:", userData)
         setToken(token)
         localStorage.setItem("refresh_token", refresh || "")
         localStorage.setItem("user", JSON.stringify(userData))
         setUser(userData)
         window.history.replaceState({}, "", window.location.pathname)
-        console.log("[DEBUG AuthContext] Token stored, user set from URL params")
+        console.log("[DEBUG AuthContext] ✅ OAuth success — user:", userData.username, "| token stored:", !!token)
       } catch (e) {
-        console.log("[DEBUG AuthContext] Failed to decode user from URL:", e)
+        console.log("[DEBUG AuthContext] ❌ Failed to decode user from URL:", e.message)
         checkAuth()
       }
     } else {
-      console.log("[DEBUG AuthContext] No URL params, calling checkAuth")
+      console.log("[DEBUG AuthContext] No URL params → calling checkAuth (token in localStorage:", !!getToken(), ")")
       checkAuth()
     }
   }, [checkAuth])
