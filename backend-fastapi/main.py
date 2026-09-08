@@ -131,8 +131,10 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 @app.get("/api/auth/me")
 def get_me(request: Request, db: Session = Depends(get_db)):
     cookies = dict(request.cookies)
+    auth_header = request.headers.get("authorization", "none")
     print(f"\n[DEBUG /auth/me] Cookies received: {list(cookies.keys())}")
     print(f"[DEBUG /auth/me] Session cookie present: {'session' in cookies}")
+    print(f"[DEBUG /auth/me] Authorization header: {auth_header[:80] if auth_header != 'none' else 'none'}")
     print(f"[DEBUG /auth/me] Origin: {request.headers.get('origin', 'none')}")
     try:
         user = get_user_from_request(request, db)
@@ -263,10 +265,10 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
     print(f"\n[DEBUG GitHub Callback] Tokens created for user: {user.username} (id={user.id})")
+    print(f"[DEBUG GitHub Callback] Access token (first 50 chars): {access[:50]}...")
     print(f"[DEBUG GitHub Callback] Redirecting to: {FRONTEND_URL}")
     print(f"[DEBUG GitHub Callback] APP_ENV: {APP_ENV}")
 
-    from fastapi.responses import HTMLResponse
     from urllib.parse import urlencode
     import base64
     import json as _json
@@ -282,6 +284,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     user_b64 = base64.urlsafe_b64encode(_json.dumps(user_data).encode()).decode()
     params = urlencode({"token": access, "refresh": refresh_token, "user": user_b64})
     redirect_url = f"{FRONTEND_URL}?{params}"
+    print(f"[DEBUG GitHub Callback] Redirect URL (first 150 chars): {redirect_url[:150]}...")
 
     response = RedirectResponse(url=redirect_url)
     set_session_cookie(response, access)

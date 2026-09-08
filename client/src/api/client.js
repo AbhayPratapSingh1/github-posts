@@ -5,19 +5,38 @@ export const API_BASE = config.apiBase
 let isRefreshing = false
 let refreshPromise = null
 
+function getToken() {
+  return localStorage.getItem("session_token")
+}
+
 const refreshToken = async () => {
+  const token = getToken()
+  const headers = {}
+  if (token) headers["Authorization"] = `Bearer ${token}`
   const res = await fetch(`${API_BASE}/auth/refresh`, {
     method: "POST",
     credentials: "include",
+    headers,
   })
+  const data = await res.json()
+  if (res.ok && data.access_token) {
+    localStorage.setItem("session_token", data.access_token)
+    console.log("[DEBUG refreshToken] New token saved")
+  }
   return res.ok
 }
 
 export const request = async (path, options = {}) => {
-  console.log("[DEBUG request]", `${API_BASE}${path}`)
+  const token = getToken()
+  const headers = { ...(options.headers || {}) }
+  if (token && !headers["Authorization"]) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+  console.log("[DEBUG request]", `${API_BASE}${path}`, "hasToken:", !!token)
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
     ...options,
+    headers,
   })
 
   if (res.status === 401 && !path.includes("/auth/")) {
@@ -31,9 +50,15 @@ export const request = async (path, options = {}) => {
 
     await refreshPromise
 
+    const newToken = getToken()
+    const retryHeaders = { ...(options.headers || {}) }
+    if (newToken && !retryHeaders["Authorization"]) {
+      retryHeaders["Authorization"] = `Bearer ${newToken}`
+    }
     const retryRes = await fetch(`${API_BASE}${path}`, {
       credentials: "include",
       ...options,
+      headers: retryHeaders,
     })
     if (!retryRes.ok) throw new Error(`Request failed: ${retryRes.status} ${retryRes.statusText}`)
     return retryRes.json()

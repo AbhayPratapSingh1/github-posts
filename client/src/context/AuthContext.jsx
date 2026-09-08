@@ -23,20 +23,27 @@ export function AuthProvider({ children }) {
     setLoading(true)
     try {
       const token = getToken()
+      console.log("[DEBUG AuthContext] checkAuth called, token:", token ? token.substring(0, 50) + "..." : "null")
       const headers = {}
       if (token) headers["Authorization"] = `Bearer ${token}`
+      console.log("[DEBUG AuthContext] Fetching:", `${API_BASE}/auth/me`, "headers:", headers)
       const res = await fetch(`${API_BASE}/auth/me`, {
         credentials: "include",
         headers,
       })
+      console.log("[DEBUG AuthContext] Response status:", res.status)
       const data = await res.json()
+      console.log("[DEBUG AuthContext] Response data:", data)
       if (data.user) {
         setUser(data.user)
+        console.log("[DEBUG AuthContext] User set:", data.user.username)
       } else {
         clearToken()
         setUser(null)
+        console.log("[DEBUG AuthContext] No user, cleared token")
       }
-    } catch {
+    } catch (e) {
+      console.log("[DEBUG AuthContext] Error:", e)
       setUser(null)
     } finally {
       setLoading(false)
@@ -44,23 +51,32 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    const url = window.location.href
+    console.log("[DEBUG AuthContext] Current URL:", url)
     const params = new URLSearchParams(window.location.search)
     const token = params.get("token")
     const refresh = params.get("refresh")
     const userB64 = params.get("user")
 
+    console.log("[DEBUG AuthContext] URL params - token:", token ? token.substring(0, 50) + "..." : "null")
+    console.log("[DEBUG AuthContext] URL params - user:", userB64 ? "present" : "null")
+
     if (token && userB64) {
       try {
         const userData = JSON.parse(atob(userB64))
+        console.log("[DEBUG AuthContext] Decoded user from URL:", userData)
         setToken(token)
         localStorage.setItem("refresh_token", refresh || "")
         localStorage.setItem("user", JSON.stringify(userData))
         setUser(userData)
         window.history.replaceState({}, "", window.location.pathname)
-      } catch {
+        console.log("[DEBUG AuthContext] Token stored, user set from URL params")
+      } catch (e) {
+        console.log("[DEBUG AuthContext] Failed to decode user from URL:", e)
         checkAuth()
       }
     } else {
+      console.log("[DEBUG AuthContext] No URL params, calling checkAuth")
       checkAuth()
     }
   }, [checkAuth])
