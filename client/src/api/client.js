@@ -6,7 +6,7 @@ let isRefreshing = false
 let refreshPromise = null
 
 function getToken() {
-  return localStorage.getItem("session_token")
+  return localStorage.getItem("session_token") || localStorage.getItem("admin_token")
 }
 
 const refreshToken = async () => {

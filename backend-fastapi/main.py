@@ -316,19 +316,53 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
 
 # ── Admin routes ─────────────────────────────────────────────────────
 
+@app.get("/api/admin/check")
+def admin_check(request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    print(f"[DEBUG /admin/check] user={getattr(user, 'username', None)}, github_id={getattr(user, 'github_id', None)}")
+
+    if not user:
+        print(f"[DEBUG /admin/check] No user found in token")
+        return JSONResponse(status_code=401, content={"error": "Not authenticated"})
+
+    github_id = getattr(user, "github_id", None)
+    if github_id not in ADMIN_GITHUB_IDS:
+        print(f"[DEBUG /admin/check] github_id={github_id} NOT in admin list {ADMIN_GITHUB_IDS}")
+        return JSONResponse(status_code=403, content={"error": "Not an admin account"})
+
+    print(f"[DEBUG /admin/check] Admin verified: {user.username} (github_id={github_id})")
+    return JSONResponse(content={
+        "success": True,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "name": getattr(user, "name", "") or "",
+            "avatar_url": user.avatar_url,
+            "github_id": user.github_id,
+        },
+    })
+
 class AdminLoginRequest(BaseModel):
     github_id: int
     password: str
 
 @app.post("/api/admin/login")
 def admin_login(body: AdminLoginRequest, db: Session = Depends(get_db)):
+    print(f"[DEBUG /admin/login] Login attempt for github_id={body.github_id}")
+
     if body.password != ADMIN_PASSWORD:
+        print(f"[DEBUG /admin/login] Wrong password for github_id={body.github_id}")
         return JSONResponse(status_code=401, content={"error": "Invalid password"})
+
     if body.github_id not in ADMIN_GITHUB_IDS:
+        print(f"[DEBUG /admin/login] github_id={body.github_id} NOT in admin list")
         return JSONResponse(status_code=403, content={"error": "Not an admin account"})
+
     user = db.query(User).filter(User.github_id == body.github_id).first()
     if not user:
-        return JSONResponse(status_code=404, content={"error": "Admin user not found in database"})
+        print(f"[DEBUG /admin/login] No DB user for github_id={body.github_id}")
+        return JSONResponse(status_code=404, content={"error": "Admin user not found"})
+
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
     user_data = {
@@ -341,6 +375,7 @@ def admin_login(body: AdminLoginRequest, db: Session = Depends(get_db)):
         "bio": getattr(user, "bio", ""),
         "is_admin": True,
     }
+    print(f"[DEBUG /admin/login] Success: {user.username} (github_id={user.github_id})")
     response = JSONResponse({"success": True, "user": user_data, "token": access})
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
@@ -413,6 +448,43 @@ def admin_delete_post(id: str, request: Request, db: Session = Depends(get_db)):
         return JSONResponse(status_code=404, content={"error": "Post not found"})
     postHandler.delete_post(id, db)
     return {"message": "Post deleted successfully"}
+
+@app.put("/api/admin/posts/{id}")
+async def admin_update_post(id: str, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    print(f"[DEBUG /admin/posts PUT] user={getattr(user, 'username', None)}, post_id={id}")
+    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+        print(f"[DEBUG /admin/posts PUT] Not admin")
+        return JSONResponse(status_code=403, content={"error": "Admin access required"})
+
+    post = postHandler.get_post_by_id(id, db)
+    if not post:
+        return JSONResponse(status_code=404, content={"error": "Post not found"})
+
+    data = body.model_dump(exclude_unset=True)
+
+    # Never allow admin to change ownership fields
+    data.pop("user_id", None)
+    data.pop("githubOwner", None)
+
+    if body.github:
+        owner, repo = parse_github_url(body.github)
+        if owner and repo:
+            gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
+            if gh:
+                data["language"] = data.get("language") or gh.get("language")
+                data["defaultBranch"] = gh.get("default_branch", data.get("defaultBranch"))
+                data["lastPushAt"] = gh.get("pushed_at", data.get("lastPushAt"))
+                data["stats"] = {
+                    "stars": gh.get("stargazers_count", 0),
+                    "forks": gh.get("forks_count", 0),
+                    "watchers": gh.get("watchers_count", 0),
+                    "openIssues": gh.get("open_issues_count", 0),
+                }
+
+    print(f"[DEBUG /admin/posts PUT] Updating post {id} (owner preserved)")
+    updated = postHandler.update_post(id, db, data)
+    return updated
 
 # ── Post routes ──────────────────────────────────────────────────────
 

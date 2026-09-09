@@ -19,6 +19,7 @@ function App() {
         <Route path="/post/:id" element={<Post />} />
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/post/:id/edit" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
       </Routes>
       <GoToTop />
     </>

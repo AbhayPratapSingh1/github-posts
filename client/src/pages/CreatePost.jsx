@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { FaArrowLeft, FaSpinner, FaCheck } from "react-icons/fa"
-import { createPost, updatePost, getGithubInfo, getPostById, generatePostContent } from "../api/posts"
+import { createPost, updatePost, adminUpdatePost, getGithubInfo, getPostById, generatePostContent } from "../api/posts"
 import { useToast } from "../context/ToastContext"
 import { useAuth } from "../context/AuthContext"
 import Logo from "../components/Logo"
@@ -17,6 +17,7 @@ function CreatePost() {
   const navigate = useNavigate()
   const { id } = useParams()
   const isEdit = Boolean(id)
+  const isAdmin = window.location.pathname.startsWith("/admin/post/")
   const { addToast } = useToast()
   const { user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -83,7 +84,7 @@ function CreatePost() {
       try {
         const info = await getGithubInfo(form.github)
         setGithubInfo(info)
-        if (info.ownerId && user?.github_id && info.ownerId !== user.github_id) {
+        if (!isAdmin && info.ownerId && user?.github_id && info.ownerId !== user.github_id) {
           setGithubStatus("not-owner")
         } else {
           setGithubStatus("success")
@@ -141,11 +142,15 @@ function CreatePost() {
 
     try {
       if (isEdit) {
-        await updatePost(id, payload)
+        if (isAdmin) {
+          await adminUpdatePost(id, payload)
+        } else {
+          await updatePost(id, payload)
+        }
       } else {
         await createPost(payload)
       }
-      navigate("/")
+      navigate(isAdmin ? "/admin/dashboard" : "/")
     } catch (err) {
       const msg = err.message || "Failed to save post"
       setError(msg)
@@ -338,7 +343,7 @@ function CreatePost() {
 
           <div className="flex items-center justify-end gap-3 pt-4">
             <Link
-              to="/"
+              to={isAdmin ? "/admin/dashboard" : "/"}
               className="rounded-lg border border-bg-300 px-5 py-2.5 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
             >
               Cancel

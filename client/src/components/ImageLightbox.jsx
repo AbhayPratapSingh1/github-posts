@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { FaTimes, FaChevronLeft, FaChevronRight } from "react-icons/fa"
 
 export default function ImageLightbox({ images, startIndex = 0, onClose }) {
   const [currentIndex, setCurrentIndex] = useState(startIndex)
+  const containerRef = useRef(null)
 
   const goNext = useCallback(() => {
     setCurrentIndex((i) => (i + 1) % images.length)
@@ -13,15 +14,42 @@ export default function ImageLightbox({ images, startIndex = 0, onClose }) {
   }, [images.length])
 
   useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const focusable = el.querySelectorAll("button")
+    if (focusable.length) focusable[0].focus()
+
+    const getFocusable = () =>
+      el.querySelectorAll("button")
+
+    const trap = (e) => {
+      if (e.key !== "Tab") return
+      const nodes = getFocusable()
+      if (!nodes.length) return
+      const first = nodes[0]
+      const last = nodes[nodes.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
     const handleKey = (e) => {
       if (e.key === "Escape") onClose()
       if (e.key === "ArrowRight") goNext()
       if (e.key === "ArrowLeft") goPrev()
     }
+
     document.addEventListener("keydown", handleKey)
+    el.addEventListener("keydown", trap)
     document.body.style.overflow = "hidden"
     return () => {
       document.removeEventListener("keydown", handleKey)
+      el.removeEventListener("keydown", trap)
       document.body.style.overflow = ""
     }
   }, [onClose, goNext, goPrev])
@@ -30,12 +58,14 @@ export default function ImageLightbox({ images, startIndex = 0, onClose }) {
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
       onClick={onClose}
     >
       <button
         onClick={onClose}
         className="absolute top-4 right-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+        aria-label="Close"
       >
         <FaTimes />
       </button>
@@ -44,6 +74,7 @@ export default function ImageLightbox({ images, startIndex = 0, onClose }) {
         <button
           onClick={(e) => { e.stopPropagation(); goPrev() }}
           className="absolute left-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          aria-label="Previous"
         >
           <FaChevronLeft />
         </button>
@@ -60,6 +91,7 @@ export default function ImageLightbox({ images, startIndex = 0, onClose }) {
         <button
           onClick={(e) => { e.stopPropagation(); goNext() }}
           className="absolute right-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          aria-label="Next"
         >
           <FaChevronRight />
         </button>

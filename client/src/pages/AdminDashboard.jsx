@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { FaTrash, FaSignOutAlt, FaUsers, FaFileAlt, FaStar, FaCodeBranch, FaExternalLinkAlt } from "react-icons/fa"
+import { FaTrash, FaSignOutAlt, FaUsers, FaFileAlt, FaStar, FaCodeBranch, FaExternalLinkAlt, FaEdit, FaEye, FaInfoCircle } from "react-icons/fa"
 import { API_BASE } from "../api/client"
 import Logo from "../components/Logo"
+import Modal from "../components/Modal"
 
 function AdminDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("posts")
+  const [detailPost, setDetailPost] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -48,16 +49,27 @@ function AdminDashboard() {
           posts: prev.posts.filter((p) => p.id !== postId),
           stats: { ...prev.stats, totalPosts: prev.stats.totalPosts - 1 },
         }))
+        setDetailPost(null)
       }
     } catch {
       // ignore
     }
   }
 
+  const handleEdit = (postId) => {
+    navigate(`/admin/post/${postId}/edit`)
+  }
+
   const handleLogout = () => {
     localStorage.removeItem("admin_token")
     localStorage.removeItem("admin_user")
     navigate("/admin", { replace: true })
+  }
+
+  const formatDate = (ts) => {
+    if (!ts) return "-"
+    const d = new Date(typeof ts === "number" ? ts * 1000 : ts)
+    return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
   }
 
   if (loading) {
@@ -176,20 +188,45 @@ function AdminDashboard() {
                       <td className="px-4 py-3">{post.githubOwner || "-"}</td>
                       <td className="px-4 py-3">{(post.stats || {}).stars || 0}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleEdit(post.id)}
+                            title="Edit"
+                            className="rounded p-1.5 text-fg-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30"
+                          >
+                            <FaEdit />
+                          </button>
+                          <a
+                            href={`/post/${post.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="View"
+                            className="rounded p-1.5 text-fg-400 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/30"
+                          >
+                            <FaEye />
+                          </a>
+                          <button
+                            onClick={() => setDetailPost(post)}
+                            title="Details"
+                            className="rounded p-1.5 text-fg-400 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/30"
+                          >
+                            <FaInfoCircle />
+                          </button>
                           {post.github && (
                             <a
                               href={post.github}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-fg-400 hover:text-fg-700"
+                              title="GitHub"
+                              className="rounded p-1.5 text-fg-400 hover:bg-bg-200 hover:text-fg-700 dark:hover:bg-bg-700"
                             >
                               <FaExternalLinkAlt />
                             </a>
                           )}
                           <button
                             onClick={() => handleDeletePost(post.id)}
-                            className="text-red-400 hover:text-red-600"
+                            title="Delete"
+                            className="rounded p-1.5 text-fg-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
                           >
                             <FaTrash />
                           </button>
@@ -252,6 +289,86 @@ function AdminDashboard() {
           )}
         </div>
       </main>
+
+      <Modal open={Boolean(detailPost)} onClose={() => setDetailPost(null)} size="lg">
+        {detailPost && (
+          <>
+            <h2 className="text-lg font-bold mb-4">Post Details</h2>
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs uppercase text-fg-500">Title</div>
+                <div className="mt-1 font-medium">{detailPost.title}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs uppercase text-fg-500">ID</div>
+                  <div className="mt-1 font-mono text-sm">{detailPost.id}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-fg-500">Type</div>
+                  <div className="mt-1">{detailPost.type}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-fg-500">Language</div>
+                  <div className="mt-1">{detailPost.language || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-fg-500">Owner</div>
+                  <div className="mt-1">{detailPost.githubOwner || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-fg-500">User ID</div>
+                  <div className="mt-1">{detailPost.user_id || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-fg-500">Created</div>
+                  <div className="mt-1">{formatDate(detailPost.dateOfCreation)}</div>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-fg-500">Short Description</div>
+                <div className="mt-1 text-sm">{detailPost.shortDescription || "-"}</div>
+              </div>
+              {detailPost.github && (
+                <div>
+                  <div className="text-xs uppercase text-fg-500">GitHub URL</div>
+                  <a href={detailPost.github} target="_blank" rel="noreferrer" className="mt-1 block text-sm text-blue-500 hover:underline break-all">
+                    {detailPost.github}
+                  </a>
+                </div>
+              )}
+              {detailPost.stats && (
+                <div>
+                  <div className="text-xs uppercase text-fg-500">Stats</div>
+                  <div className="mt-2 flex gap-4 text-sm">
+                    <span><FaStar className="mr-1 inline text-yellow-500" />{detailPost.stats.stars || 0}</span>
+                    <span><FaCodeBranch className="mr-1 inline text-purple-500" />{detailPost.stats.forks || 0}</span>
+                    <span>Watchers: {detailPost.stats.watchers || 0}</span>
+                    <span>Issues: {detailPost.stats.openIssues || 0}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-bg-200 dark:border-bg-700">
+              <button
+                onClick={() => {
+                  handleEdit(detailPost.id)
+                  setDetailPost(null)
+                }}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                <FaEdit /> Edit
+              </button>
+              <button
+                onClick={() => handleDeletePost(detailPost.id)}
+                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                <FaTrash /> Delete
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import request, { API_BASE } from "./client.js"
 
 function getToken() {
-  return localStorage.getItem("session_token")
+  return localStorage.getItem("session_token") || localStorage.getItem("admin_token")
 }
 
 function authHeaders(extra = {}) {
@@ -25,6 +25,13 @@ export const createPost = (data) =>
 
 export const updatePost = (id, data) =>
   request(`/posts/${id}`, {
+    method: "PUT",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(data),
+  })
+
+export const adminUpdatePost = (id, data) =>
+  request(`/admin/posts/${id}`, {
     method: "PUT",
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(data),

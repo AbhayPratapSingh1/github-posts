@@ -12,7 +12,9 @@ function ProtectedRoute({ children }) {
     )
   }
 
-  if (!user) {
+  const hasAdminToken = Boolean(localStorage.getItem("admin_token"))
+
+  if (!user && !hasAdminToken) {
     return <Navigate to="/login" replace />
   }
 
