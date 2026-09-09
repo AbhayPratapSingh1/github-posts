@@ -72,12 +72,14 @@ export function AuthProvider({ children }) {
           localStorage.setItem("refresh_token", refresh || "")
           localStorage.setItem("user", JSON.stringify(userData))
           setUser(userData)
+          setLoading(false)
           window.history.replaceState({}, "", window.location.pathname)
           addToast(`Signed in as ${userData.username}`, "success")
         } catch (e) {
           console.error("[AuthContext] OAuth decode failed:", e)
           addToast("Sign-in failed. Please try again.", "error")
           window.history.replaceState({}, "", window.location.pathname)
+          setLoading(false)
           checkAuth()
         }
       } else {
