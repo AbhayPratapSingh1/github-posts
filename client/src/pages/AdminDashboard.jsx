@@ -300,7 +300,7 @@ function AdminDashboard() {
         {detailPost && (
           <>
             <h2 className="text-lg font-bold mb-4">Post Details</h2>
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div>
                 <div className="text-xs uppercase text-fg-500">Title</div>
                 <div className="mt-1 font-medium">{detailPost.title}</div>
@@ -326,44 +326,55 @@ function AdminDashboard() {
                   <div className="text-xs uppercase text-fg-500">User ID</div>
                   <div className="mt-1">{detailPost.user_id || "-"}</div>
                 </div>
-                <div>
-                  <div className="text-xs uppercase text-fg-500">Created</div>
-                  <div className="mt-1">{formatDate(detailPost.dateOfCreation)}</div>
+              </div>
+
+              <div className="border-t border-bg-200 dark:border-bg-700 pt-4">
+                <h3 className="text-sm font-semibold text-fg-700 dark:text-fg-300 mb-3">GitHub Info</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs uppercase text-fg-500">Repo Created</div>
+                    <div className="mt-1">{formatDate(detailPost.dateOfCreation)}</div>
+                  </div>
+                </div>
+                {detailPost.github && (
+                  <div className="mt-3">
+                    <div className="text-xs uppercase text-fg-500">GitHub URL</div>
+                    <a href={detailPost.github} target="_blank" rel="noreferrer" className="mt-1 block text-sm text-blue-500 hover:underline break-all">
+                      {detailPost.github}
+                    </a>
+                  </div>
+                )}
+                {detailPost.stats && (
+                  <div className="mt-3">
+                    <div className="text-xs uppercase text-fg-500">Stats</div>
+                    <div className="mt-2 flex gap-4 text-sm">
+                      <span><FaStar className="mr-1 inline text-yellow-500" />{detailPost.stats.stars || 0}</span>
+                      <span><FaCodeBranch className="mr-1 inline text-purple-500" />{detailPost.stats.forks || 0}</span>
+                      <span>Watchers: {detailPost.stats.watchers || 0}</span>
+                      <span>Issues: {detailPost.stats.openIssues || 0}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-bg-200 dark:border-bg-700 pt-4">
+                <h3 className="text-sm font-semibold text-fg-700 dark:text-fg-300 mb-3">Post Info</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs uppercase text-fg-500">Post Created</div>
+                    <div className="mt-1">{formatISO(detailPost.created_at)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase text-fg-500">Last Updated</div>
+                    <div className="mt-1">{formatISO(detailPost.updated_at)}</div>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-xs uppercase text-fg-500">Post Created At</div>
-                  <div className="mt-1">{formatISO(detailPost.created_at)}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase text-fg-500">Last Updated At</div>
-                  <div className="mt-1">{formatISO(detailPost.updated_at)}</div>
-                </div>
-              </div>
-              <div>
+
+              <div className="border-t border-bg-200 dark:border-bg-700 pt-4">
                 <div className="text-xs uppercase text-fg-500">Short Description</div>
                 <div className="mt-1 text-sm">{detailPost.shortDescription || "-"}</div>
               </div>
-              {detailPost.github && (
-                <div>
-                  <div className="text-xs uppercase text-fg-500">GitHub URL</div>
-                  <a href={detailPost.github} target="_blank" rel="noreferrer" className="mt-1 block text-sm text-blue-500 hover:underline break-all">
-                    {detailPost.github}
-                  </a>
-                </div>
-              )}
-              {detailPost.stats && (
-                <div>
-                  <div className="text-xs uppercase text-fg-500">Stats</div>
-                  <div className="mt-2 flex gap-4 text-sm">
-                    <span><FaStar className="mr-1 inline text-yellow-500" />{detailPost.stats.stars || 0}</span>
-                    <span><FaCodeBranch className="mr-1 inline text-purple-500" />{detailPost.stats.forks || 0}</span>
-                    <span>Watchers: {detailPost.stats.watchers || 0}</span>
-                    <span>Issues: {detailPost.stats.openIssues || 0}</span>
-                  </div>
-                </div>
-              )}
             </div>
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-bg-200 dark:border-bg-700">
               <button
