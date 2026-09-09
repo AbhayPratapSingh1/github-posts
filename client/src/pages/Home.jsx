@@ -152,7 +152,7 @@ function Home() {
                         onClick={(e) => e.stopPropagation()}
                         className="font-medium text-primary-600 hover:underline dark:text-primary-400"
                       >
-                        {post.githubOwner}
+                        {post.authorName || post.authorUsername || post.githubOwner}
                       </a>
                     </span>
                   )}

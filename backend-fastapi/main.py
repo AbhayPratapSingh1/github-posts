@@ -392,6 +392,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
     post_list = []
     for p in all_posts:
+        author = db.query(User).filter(User.id == p.user_id).first() if p.user_id else None
         post_list.append({
             "id": p.id,
             "title": p.title,
@@ -405,6 +406,8 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
             "user_id": p.user_id,
             "created_at": p.created_at,
             "updated_at": p.updated_at,
+            "authorName": author.name if author else None,
+            "authorUsername": author.username if author else None,
         })
 
     user_list = []
@@ -445,7 +448,7 @@ def admin_delete_post(id: str, request: Request, db: Session = Depends(get_db)):
     if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
-    post = postHandler.get_post_by_id(id, db)
+    post = postHandler.get_post_raw(id, db)
     if not post:
         return JSONResponse(status_code=404, content={"error": "Post not found"})
     postHandler.delete_post(id, db)
@@ -459,7 +462,7 @@ async def admin_update_post(id: str, body: CreatePostRequest, request: Request, 
         print(f"[DEBUG /admin/posts PUT] Not admin")
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
-    post = postHandler.get_post_by_id(id, db)
+    post = postHandler.get_post_raw(id, db)
     if not post:
         return JSONResponse(status_code=404, content={"error": "Post not found"})
 
@@ -745,7 +748,7 @@ async def createPost(body: CreatePostRequest, request: Request, db: Session = De
 def deletePost(id, request: Request, db: Session = Depends(get_db)):
     user = require_user(request, db)
 
-    post = postHandler.get_post_by_id(id, db)
+    post = postHandler.get_post_raw(id, db)
     if not post:
         return JSONResponse(
             status_code=404,
@@ -764,7 +767,7 @@ def deletePost(id, request: Request, db: Session = Depends(get_db)):
 async def updatePost(id, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
     user = require_user(request, db)
 
-    post = postHandler.get_post_by_id(id, db)
+    post = postHandler.get_post_raw(id, db)
     if not post:
         return JSONResponse(
             status_code=404,

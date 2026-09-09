@@ -137,7 +137,7 @@ function Post() {
               rel="noreferrer"
               className="font-medium text-primary-600 hover:underline dark:text-primary-400"
             >
-              {post.githubOwner}
+              {post.authorName || post.authorUsername || post.githubOwner}
             </a>
           </p>
         )}
@@ -229,7 +229,7 @@ function Post() {
                   rel="noreferrer"
                   className="text-primary-600 hover:underline dark:text-primary-400"
                 >
-                  {post.githubOwner}
+                  {post.authorName || post.authorUsername || post.githubOwner}
                 </a>
               ) : "N/A"}
             </p>

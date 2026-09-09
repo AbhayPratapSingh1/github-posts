@@ -199,7 +199,7 @@ function AdminDashboard() {
                             rel="noreferrer"
                             className="text-primary-600 hover:underline dark:text-primary-400"
                           >
-                            {post.githubOwner}
+                            {post.authorName || post.authorUsername || post.githubOwner}
                           </a>
                         ) : "-"}
                       </td>
@@ -346,7 +346,7 @@ function AdminDashboard() {
                         rel="noreferrer"
                         className="text-primary-600 hover:underline dark:text-primary-400"
                       >
-                        {detailPost.githubOwner}
+                        {detailPost.authorName || detailPost.authorUsername || detailPost.githubOwner}
                       </a>
                     ) : "-"}
                   </div>

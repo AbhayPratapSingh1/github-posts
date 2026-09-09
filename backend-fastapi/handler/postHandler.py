@@ -1,15 +1,49 @@
-from app.models import Post
+from app.models import Post, User
 
 class Post_handler:
     def __init__(self):
         pass
 
+    def _post_to_dict(self, post, user=None):
+        return {
+            "id": post.id,
+            "user_id": post.user_id,
+            "title": post.title,
+            "type": post.type,
+            "shortDescription": post.shortDescription,
+            "hosted": post.hosted,
+            "availableAt": post.availableAt,
+            "description": post.description,
+            "github": post.github,
+            "dateOfCreation": post.dateOfCreation,
+            "language": post.language,
+            "lastPushAt": post.lastPushAt,
+            "defaultBranch": post.defaultBranch,
+            "stats": post.stats,
+            "githubOwner": post.githubOwner,
+            "created_at": post.created_at,
+            "updated_at": post.updated_at,
+            "authorName": user.name if user else None,
+            "authorUsername": user.username if user else None,
+        }
+
     def get_all_posts(self, db, offset=0, limit=12):
         total = db.query(Post).count()
         posts = db.query(Post).order_by(Post.dateOfCreation.desc().nullslast()).offset(offset).limit(limit).all()
-        return {"posts": posts, "total": total, "offset": offset, "limit": limit}
+        result = []
+        for post in posts:
+            user = db.query(User).filter(User.id == post.user_id).first() if post.user_id else None
+            result.append(self._post_to_dict(post, user))
+        return {"posts": result, "total": total, "offset": offset, "limit": limit}
 
     def get_post_by_id(self, id, db):
+        post = db.query(Post).filter(Post.id == id).first()
+        if not post:
+            return None
+        user = db.query(User).filter(User.id == post.user_id).first() if post.user_id else None
+        return self._post_to_dict(post, user)
+
+    def get_post_raw(self, id, db):
         return db.query(Post).filter(Post.id == id).first()
 
     def create_post(self, db, data):
