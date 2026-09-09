@@ -2,7 +2,7 @@ import { FaGithub } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import { useEffect } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { API_BASE } from "../api/client"
 import Logo from "../components/Logo"
 
@@ -11,14 +11,24 @@ function Login() {
   const { addToast } = useToast()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const location = useLocation();
 
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
 
   useEffect(() => {
-    if (!loading && user) navigate("/", { replace: true })
-  }, [user, loading, navigate])
+    if (!loading && user) {
+      const from = location.state?.from
+      console.log({from, location})
+      navigate(
+        from
+          ? `${from.pathname}${from.search || ""}${from.hash || ""}`
+          : "/",
+        { replace: true }
+      )
+    }
+}, [user, loading, navigate, location])
 
   useEffect(() => {
     const error = searchParams.get("error")

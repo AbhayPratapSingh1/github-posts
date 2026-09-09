@@ -145,15 +145,12 @@ function Home() {
                   {post.githubOwner && (
                     <span>
                       by{" "}
-                      <a
-                        href={`https://github.com/${post.githubOwner}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                      <span
+                        onClick={() => window.open(`https://github.com/${post.githubOwner}`, "_blank")}
+                        className="font-medium text-primary-600 hover:underline dark:text-primary-400 cursor-pointer"
                       >
                         {post.authorName || post.authorUsername || post.githubOwner}
-                      </a>
+                      </span>
                     </span>
                   )}
                   {post.created_at && (

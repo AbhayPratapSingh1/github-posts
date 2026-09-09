@@ -29,19 +29,26 @@ function Post() {
   const { addToast } = useToast()
   const [post, setPost] = useState(() => findPostById(id))
   const [isLoading, setIsLoading] = useState(true)
+  const [comments, setComments] = useState([])
   const [lightbox, setLightbox] = useState({ open: false, startIndex: 0, images: [] })
   const articleRef = useRef(null)
 
   useEffect(() => {
     setIsLoading(true)
     getPostById(id)
-      .then((data) => setPost(data))
+      .then((data) => {setPost(data); setComments(data.comments)})
       .catch(() => {
         setPost(findPostById(id))
+        setComments(data.comments)
         addToast("Failed to load post", "error")
       })
       .finally(() => setIsLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (!id || isLoading) return
+    fetchComments()
+  }, [id, isLoading])
 
   const handleDelete = async () => {
     const confirm = window.confirm(`Are you sure you want to delete "${post?.title || id}"?`)
@@ -52,6 +59,22 @@ function Post() {
     } catch (err) {
       const msg = err.message || "Failed to delete post"
       addToast(msg, "error")
+    }
+  }
+
+  const fetchComments = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/posts/${id}/comments`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("session_token") || localStorage.getItem("admin_token")}`,
+        },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setComments(data)
+      }
+    } catch {
+      // Silently fail - comments are optional
     }
   }
 
@@ -324,18 +347,36 @@ function Post() {
       </section>
     </main>
 
+
+    <section className="border-t border-bg-200 bg-bg-50 py-8 dark:border-bg-800 dark:bg-bg-950">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-fg-900 dark:text-fg-100">
+            Comments
+          </h2>
+
+          {comments?.length > 0 && (
+            <p className="mt-1 text-sm text-fg-500 dark:text-fg-400">
+              Join the discussion
+            </p>
+          )}
+        </div>
+
+        <CommentsSection
+          postId={id}
+          comments={comments || []}
+          hasMoreComments={post.has_more_comments}
+          setComments={setComments}
+          isLoading={isLoading}
+        />
+      </div>
+    </section>
+
     <footer className="border-t border-bg-200 dark:border-bg-800">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-6 text-sm text-fg-500 sm:px-6 dark:text-fg-400">
         <p>© {new Date().getFullYear()} {post.title || "Untitled"}</p>
       </div>
     </footer>
-
-    <CommentsSection
-      postId={id}
-      comments={post.comments || []}
-      setComments={setComments}
-      isLoading={isLoading}
-    />
 
     {lightbox.open && (
       <ImageLightbox

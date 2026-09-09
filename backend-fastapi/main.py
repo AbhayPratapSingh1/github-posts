@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from all_posts import posts
 from handler.postHandler import Post_handler
 from database import get_db
-from app.models import User, Post
+from app.models import User, Post, Comment
 from auth import (
     create_access_token,
     create_refresh_token,
@@ -477,21 +477,32 @@ def admin_delete_all_users(request: Request, db: Session = Depends(get_db)):
     db.query(User).delete()
     db.commit()
     return {"message": f"Deleted {count} users"}
-
 @app.post("/api/posts/{post_id}/comments")
-async def create_comment(post_id: str, request: Request, db: Session = Depends(get_db)):
+async def create_comment(
+    post_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
     user = require_user(request, db)
-    if not user:
-        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
 
-    # Simple: just save comment with user_id and content
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Unauthorized"}
+        )
+
     body = await request.json()
     content = body.get("content", "").strip()
+
     if not content:
-        return JSONResponse(status_code=400, content={"error": "Content required"})
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Content required"}
+        )
 
     from datetime import datetime, timezone
-    now = datetime.now(timezone.utc).isoformat()
+
+    now = datetime.now(timezone.utc)
 
     comment = Comment(
         post_id=post_id,
@@ -500,6 +511,7 @@ async def create_comment(post_id: str, request: Request, db: Session = Depends(g
         created_at=now,
         updated_at=now,
     )
+
     db.add(comment)
     db.commit()
     db.refresh(comment)
@@ -508,26 +520,45 @@ async def create_comment(post_id: str, request: Request, db: Session = Depends(g
         "id": comment.id,
         "post_id": comment.post_id,
         "user_id": comment.user_id,
+        "github_id": user.github_id,
+        "username": user.username,
+        "name": getattr(user, "name", "") or "",
+        "avatar_url": user.avatar_url,
         "content": comment.content,
         "created_at": comment.created_at,
     }
 
+
 @app.get("/api/posts/{post_id}/comments")
 def get_comments(post_id: str, db: Session = Depends(get_db)):
     comments = (
-        db.query(Comment)
+        db.query(
+            Comment,
+            User.id,
+            User.github_id,
+            User.username,
+            User.name,
+            User.avatar_url,
+        )
+        .join(User, Comment.user_id == User.id)
         .filter(Comment.post_id == post_id)
-        .order_by(Comment.created_at.asc())
+        .order_by(Comment.created_at.desc())
+        .limit(6)
         .all()
     )
+
     return [
         {
             "id": c.id,
-            "user_id": c.user_id,
+            "user_id": user_id,
+            "github_id": github_id,
+            "username": username,
+            "name": name or "",
+            "avatar_url": avatar_url,
             "content": c.content,
             "created_at": c.created_at,
         }
-        for c in comments
+        for c, user_id, github_id, username, name, avatar_url in comments
     ]
 
 @app.put("/api/admin/posts/{id}")
@@ -591,6 +622,39 @@ def getPostById(id, db: Session = Depends(get_db)):
             status_code=404,
             content={"error": "Post ID doesn't exist"}
         )
+    comments_raw = (
+        db.query(
+            Comment,
+            User.id,
+            User.github_id,
+            User.username,
+            User.name,
+            User.avatar_url,
+        )
+        .join(User, Comment.user_id == User.id)
+        .filter(Comment.post_id == id)
+        .order_by(Comment.created_at.desc())
+        .limit(6)
+        .all()
+    )
+
+    comments = [
+        {
+            "id": c.id,
+            "user_id": user_id,
+            "github_id": github_id,
+            "username": username,
+            "name": name or "",
+            "avatar_url": avatar_url,
+            "content": c.content,
+            "created_at": c.created_at,
+        }
+        for c, user_id, github_id, username, name, avatar_url in comments_raw
+    ]
+
+    post["comments"] = comments[:5]
+    post["has_more_comments"] = len(comments) > 5
+
     return post
 
 @app.get('/api/github/info')

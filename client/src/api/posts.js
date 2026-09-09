@@ -16,6 +16,8 @@ export const getPosts = (offset = 0, limit = 12) =>
 
 export const getPostById = (id) => request(`/posts/${id}`)
 
+export const getPostCommentById = (id) => request(`/posts/${id}/comments`)
+
 export const createPost = (data) =>
   request("/posts", {
     method: "POST",
