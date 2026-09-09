@@ -2,14 +2,72 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { FaTrash, FaSignOutAlt, FaUsers, FaFileAlt, FaStar, FaCodeBranch, FaExternalLinkAlt, FaEdit, FaEye, FaInfoCircle } from "react-icons/fa"
 import { API_BASE } from "../api/client"
+import { deleteAllPosts, deleteAllUsers } from "../api/posts"
 import Logo from "../components/Logo"
 import Modal from "../components/Modal"
+
+function ConfirmModal({ open, onClose, onConfirm, title, confirmText, description }) {
+  const [input, setInput] = useState("")
+  const [loading, setLoading] = useState(false)
+  const isMatch = input === confirmText
+
+  const handleConfirm = async () => {
+    if (!isMatch) return
+    setLoading(true)
+    try {
+      await onConfirm()
+    } finally {
+      setLoading(false)
+      setInput("")
+      onClose()
+    }
+  }
+
+  useEffect(() => {
+    if (!open) setInput("")
+  }, [open])
+
+  return (
+    <Modal open={open} onClose={onClose} size="sm">
+      <h2 className="text-lg font-bold text-red-600 dark:text-red-400">{title}</h2>
+      <p className="mt-2 text-sm text-fg-600 dark:text-fg-400">{description}</p>
+      <p className="mt-3 text-sm font-medium">
+        Type <span className="font-mono bg-bg-200 dark:bg-bg-700 px-1.5 py-0.5 rounded">{confirmText}</span> to confirm:
+      </p>
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && isMatch && handleConfirm()}
+        className="mt-2 w-full rounded-lg border border-bg-300 bg-bg-50 px-3 py-2 text-sm outline-none focus:border-red-500 dark:border-bg-700 dark:bg-bg-800"
+        placeholder={confirmText}
+        autoFocus
+      />
+      <div className="mt-4 flex justify-end gap-3">
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={!isMatch || loading}
+          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? "Deleting..." : "Delete All"}
+        </button>
+      </div>
+    </Modal>
+  )
+}
 
 function AdminDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("posts")
   const [detailPost, setDetailPost] = useState(null)
+  const [confirmModal, setConfirmModal] = useState(null) // "posts" | "users" | null
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -66,6 +124,24 @@ function AdminDashboard() {
     navigate("/admin", { replace: true })
   }
 
+  const handleBulkDeletePosts = async () => {
+    await deleteAllPosts()
+    setData((prev) => ({
+      ...prev,
+      posts: [],
+      stats: { ...prev.stats, totalPosts: 0 },
+    }))
+  }
+
+  const handleBulkDeleteUsers = async () => {
+    await deleteAllUsers()
+    setData((prev) => ({
+      ...prev,
+      users: [],
+      stats: { ...prev.stats, totalUsers: 0 },
+    }))
+  }
+
   const formatDate = (ts) => {
     if (!ts) return "-"
     const d = new Date(typeof ts === "number" ? ts * 1000 : ts)
@@ -104,12 +180,26 @@ function AdminDashboard() {
             <Logo className="size-8" />
             <h1 className="text-xl font-bold">Admin Dashboard</h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
-          >
-            <FaSignOutAlt /> Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setConfirmModal("posts")}
+              className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+            >
+              <FaTrash /> Delete All Posts
+            </button>
+            <button
+              onClick={() => setConfirmModal("users")}
+              className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+            >
+              <FaTrash /> Delete All Users
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
+            >
+              <FaSignOutAlt /> Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -425,6 +515,24 @@ function AdminDashboard() {
           </>
         )}
       </Modal>
+
+      <ConfirmModal
+        open={confirmModal === "posts"}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleBulkDeletePosts}
+        title="Delete All Posts"
+        confirmText="DELETE ALL POST"
+        description={`This will permanently delete all ${data?.posts?.length || 0} posts. This action cannot be undone.`}
+      />
+
+      <ConfirmModal
+        open={confirmModal === "users"}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleBulkDeleteUsers}
+        title="Delete All Users"
+        confirmText="DELETE ALL USER"
+        description={`This will permanently delete all ${data?.users?.length || 0} users. This action cannot be undone.`}
+      />
     </div>
   )
 }

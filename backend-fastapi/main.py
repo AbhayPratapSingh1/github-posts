@@ -454,6 +454,28 @@ def admin_delete_post(id: str, request: Request, db: Session = Depends(get_db)):
     postHandler.delete_post(id, db)
     return {"message": "Post deleted successfully"}
 
+@app.delete("/api/admin/posts")
+def admin_delete_all_posts(request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+        return JSONResponse(status_code=403, content={"error": "Admin access required"})
+
+    count = db.query(Post).count()
+    db.query(Post).delete()
+    db.commit()
+    return {"message": f"Deleted {count} posts"}
+
+@app.delete("/api/admin/users")
+def admin_delete_all_users(request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+        return JSONResponse(status_code=403, content={"error": "Admin access required"})
+
+    count = db.query(User).count()
+    db.query(User).delete()
+    db.commit()
+    return {"message": f"Deleted {count} users"}
+
 @app.put("/api/admin/posts/{id}")
 async def admin_update_post(id: str, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
     user = get_user_from_request(request, db)

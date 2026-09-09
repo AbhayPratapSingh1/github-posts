@@ -43,6 +43,18 @@ export const deletePost = (id) =>
     headers: authHeaders(),
   })
 
+export const deleteAllPosts = () =>
+  request("/admin/posts", {
+    method: "DELETE",
+    headers: authHeaders(),
+  })
+
+export const deleteAllUsers = () =>
+  request("/admin/users", {
+    method: "DELETE",
+    headers: authHeaders(),
+  })
+
 export const getGithubInfo = async (url) => {
   const res = await fetch(`${API_BASE}/github/info?url=${encodeURIComponent(url)}`, {
     headers: authHeaders(),
