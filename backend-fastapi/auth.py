@@ -37,9 +37,10 @@ def decode_token(token: str) -> Optional[dict]:
 
 
 class _SimpleUser:
-    def __init__(self, id: int, username: str, email: str = "", avatar_url: str = "", bio: str = "", created_at: str = ""):
+    def __init__(self, id: int, username: str, email: str = "", avatar_url: str = "", bio: str = "", created_at: str = "", name: str = ""):
         self.id = id
         self.username = username
+        self.name = name
         self.email = email
         self.avatar_url = avatar_url
         self.bio = bio

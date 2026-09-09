@@ -286,7 +286,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
             db.refresh(user)
     else:
         from auth import _SimpleUser
-        user = _SimpleUser(id=github_id, username=username, email=email, avatar_url=avatar_url, bio=bio, created_at=created_at)
+        user = _SimpleUser(id=github_id, username=username, email=email, avatar_url=avatar_url, bio=bio, created_at=created_at, name=name)
 
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
