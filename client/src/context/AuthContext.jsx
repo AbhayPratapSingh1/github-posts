@@ -73,7 +73,7 @@ export function AuthProvider({ children }) {
           setUser(userData)
           setLoading(false)
           window.history.replaceState({}, "", window.location.pathname)
-          addToast(`Signed in as ${userData.username}`, "success")
+          addToast(`Signed in as ${userData.name || userData.username}`, "success")
         } catch {
           addToast("Sign-in failed. Please try again.", "error")
           window.history.replaceState({}, "", window.location.pathname)
