@@ -141,6 +141,25 @@ function Home() {
                 <p className="mt-1 text-sm text-fg-600 dark:text-fg-400">
                   {post.shortDescription}
                 </p>
+                <div className="mt-2 flex items-center gap-3 text-xs text-fg-500 dark:text-fg-400">
+                  {post.githubOwner && (
+                    <span>
+                      by{" "}
+                      <a
+                        href={`https://github.com/${post.githubOwner}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                      >
+                        {post.githubOwner}
+                      </a>
+                    </span>
+                  )}
+                  {post.created_at && (
+                    <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  )}
+                </div>
               </div>
 
               <div className="flex shrink-0 items-center gap-4 text-sm text-fg-500 dark:text-fg-400">
