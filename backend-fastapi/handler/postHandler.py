@@ -27,12 +27,19 @@ class Post_handler:
             "authorUsername": user.username if user else None,
         }
 
+    def _resolve_user(self, db, post):
+        if post.user_id:
+            return db.query(User).filter(User.id == post.user_id).first()
+        if post.githubOwner:
+            return db.query(User).filter(User.username == post.githubOwner).first()
+        return None
+
     def get_all_posts(self, db, offset=0, limit=12):
         total = db.query(Post).count()
         posts = db.query(Post).order_by(Post.dateOfCreation.desc().nullslast()).offset(offset).limit(limit).all()
         result = []
         for post in posts:
-            user = db.query(User).filter(User.id == post.user_id).first() if post.user_id else None
+            user = self._resolve_user(db, post)
             result.append(self._post_to_dict(post, user))
         return {"posts": result, "total": total, "offset": offset, "limit": limit}
 
@@ -40,7 +47,7 @@ class Post_handler:
         post = db.query(Post).filter(Post.id == id).first()
         if not post:
             return None
-        user = db.query(User).filter(User.id == post.user_id).first() if post.user_id else None
+        user = self._resolve_user(db, post)
         return self._post_to_dict(post, user)
 
     def get_post_raw(self, id, db):

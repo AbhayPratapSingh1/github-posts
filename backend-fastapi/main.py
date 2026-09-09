@@ -393,6 +393,8 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     post_list = []
     for p in all_posts:
         author = db.query(User).filter(User.id == p.user_id).first() if p.user_id else None
+        if not author and p.githubOwner:
+            author = db.query(User).filter(User.username == p.githubOwner).first()
         post_list.append({
             "id": p.id,
             "title": p.title,
