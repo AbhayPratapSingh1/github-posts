@@ -10,7 +10,7 @@ export default function Logo({ className = "" }) {
       <path
         d="M10 12h16M10 18h12M10 24h8"
         stroke="#fff"
-        stroke-width="2.2"
+        strokeWidth="2.2"
         strokeLinecap="round"
       />
       <circle cx="28" cy="24" r="2.5" fill="#22D3EE" />
