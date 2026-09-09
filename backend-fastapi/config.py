@@ -24,3 +24,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_POST_PANEL", "")
 
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID_POST_PANEL", "")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET_POST_PANEL", "")
+
+ADMIN_GITHUB_IDS = [int(x.strip()) for x in os.getenv("ADMIN_GITHUB_IDS", "47173091").split(",") if x.strip()]
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")

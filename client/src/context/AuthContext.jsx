@@ -49,8 +49,7 @@ export function AuthProvider({ children }) {
         clearAuth()
         setUser(null)
       }
-    } catch (e) {
-      console.error("[AuthContext] checkAuth failed:", e)
+    } catch {
       clearAuth()
       setUser(null)
     } finally {
@@ -75,8 +74,7 @@ export function AuthProvider({ children }) {
           setLoading(false)
           window.history.replaceState({}, "", window.location.pathname)
           addToast(`Signed in as ${userData.username}`, "success")
-        } catch (e) {
-          console.error("[AuthContext] OAuth decode failed:", e)
+        } catch {
           addToast("Sign-in failed. Please try again.", "error")
           window.history.replaceState({}, "", window.location.pathname)
           setLoading(false)
@@ -85,8 +83,7 @@ export function AuthProvider({ children }) {
       } else {
         checkAuth()
       }
-    } catch (e) {
-      console.error("[AuthContext] Auth init failed:", e)
+    } catch {
       setLoading(false)
     }
   }, [checkAuth, addToast])
@@ -106,8 +103,7 @@ export function AuthProvider({ children }) {
       }
       addToast(data.error || "Login failed", "error")
       return false
-    } catch (e) {
-      console.error("[AuthContext] login failed:", e)
+    } catch {
       addToast("Login failed. Please try again.", "error")
       return false
     }

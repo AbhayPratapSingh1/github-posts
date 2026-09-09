@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from all_posts import posts
 from handler.postHandler import Post_handler
 from database import get_db
-from app.models import User
+from app.models import User, Post
 from auth import (
     create_access_token,
     create_refresh_token,
@@ -25,7 +25,7 @@ from auth import (
     refresh_access_token,
     require_user,
 )
-from config import APP_ENV, PORT, BACKEND_URL, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+from config import APP_ENV, PORT, BACKEND_URL, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, ADMIN_GITHUB_IDS, ADMIN_PASSWORD
 
 app = FastAPI()
 
@@ -313,6 +313,106 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     return response
+
+# ── Admin routes ─────────────────────────────────────────────────────
+
+class AdminLoginRequest(BaseModel):
+    github_id: int
+    password: str
+
+@app.post("/api/admin/login")
+def admin_login(body: AdminLoginRequest, db: Session = Depends(get_db)):
+    if body.password != ADMIN_PASSWORD:
+        return JSONResponse(status_code=401, content={"error": "Invalid password"})
+    if body.github_id not in ADMIN_GITHUB_IDS:
+        return JSONResponse(status_code=403, content={"error": "Not an admin account"})
+    user = db.query(User).filter(User.github_id == body.github_id).first()
+    if not user:
+        return JSONResponse(status_code=404, content={"error": "Admin user not found in database"})
+    access = create_access_token(user.id, user.username)
+    refresh_token = create_refresh_token(user.id, user.username)
+    user_data = {
+        "id": user.id,
+        "username": user.username,
+        "name": getattr(user, "name", "") or "",
+        "avatar_url": user.avatar_url,
+        "github_id": user.github_id,
+        "email": getattr(user, "email", ""),
+        "bio": getattr(user, "bio", ""),
+        "is_admin": True,
+    }
+    response = JSONResponse({"success": True, "user": user_data, "token": access})
+    set_session_cookie(response, access)
+    set_refresh_cookie(response, refresh_token)
+    return response
+
+@app.get("/api/admin/dashboard")
+def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+        return JSONResponse(status_code=403, content={"error": "Admin access required"})
+
+    all_posts = db.query(Post).order_by(Post.dateOfCreation.desc().nullslast()).all()
+    all_users = db.query(User).all()
+
+    post_list = []
+    for p in all_posts:
+        post_list.append({
+            "id": p.id,
+            "title": p.title,
+            "type": p.type,
+            "shortDescription": p.shortDescription,
+            "github": p.github,
+            "language": p.language,
+            "stats": p.stats,
+            "githubOwner": p.githubOwner,
+            "dateOfCreation": p.dateOfCreation,
+            "user_id": p.user_id,
+        })
+
+    user_list = []
+    for u in all_users:
+        user_list.append({
+            "id": u.id,
+            "github_id": u.github_id,
+            "username": u.username,
+            "name": getattr(u, "name", "") or "",
+            "email": u.email,
+            "avatar_url": u.avatar_url,
+            "bio": u.bio,
+            "created_at": u.created_at,
+        })
+
+    total_stars = sum((p.stats or {}).get("stars", 0) for p in all_posts)
+    total_forks = sum((p.stats or {}).get("forks", 0) for p in all_posts)
+    languages = {}
+    for p in all_posts:
+        lang = p.language or "Unknown"
+        languages[lang] = languages.get(lang, 0) + 1
+
+    return {
+        "stats": {
+            "totalPosts": len(all_posts),
+            "totalUsers": len(all_users),
+            "totalStars": total_stars,
+            "totalForks": total_forks,
+            "languages": languages,
+        },
+        "posts": post_list,
+        "users": user_list,
+    }
+
+@app.delete("/api/admin/posts/{id}")
+def admin_delete_post(id: str, request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+        return JSONResponse(status_code=403, content={"error": "Admin access required"})
+
+    post = postHandler.get_post_by_id(id, db)
+    if not post:
+        return JSONResponse(status_code=404, content={"error": "Post not found"})
+    postHandler.delete_post(id, db)
+    return {"message": "Post deleted successfully"}
 
 # ── Post routes ──────────────────────────────────────────────────────
 
