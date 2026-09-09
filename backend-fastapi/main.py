@@ -382,6 +382,7 @@ async def getGithubInfo(request: Request, url: str = Query(..., description="Git
         "createdAt": data.get("created_at"),
         "pushedAt": data.get("pushed_at"),
         "githubOwner": data.get("owner", {}).get("login"),
+        "ownerId": data.get("owner", {}).get("id"),
         "description": data.get("description"),
         "stats": {
             "stars": data.get("stargazers_count", 0),

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import { FaArrowLeft, FaSpinner, FaCheck } from "react-icons/fa"
 import { createPost, updatePost, getGithubInfo, getPostById, generatePostContent } from "../api/posts"
 import { useToast } from "../context/ToastContext"
+import { useAuth } from "../context/AuthContext"
 import Logo from "../components/Logo"
 
 const ReactQuill = lazy(() => import("react-quill-new"))
@@ -17,6 +18,7 @@ function CreatePost() {
   const { id } = useParams()
   const isEdit = Boolean(id)
   const { addToast } = useToast()
+  const { user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [loadingPost, setLoadingPost] = useState(isEdit)
@@ -81,7 +83,11 @@ function CreatePost() {
       try {
         const info = await getGithubInfo(form.github)
         setGithubInfo(info)
-        setGithubStatus("success")
+        if (info.ownerId && user?.github_id && info.ownerId !== user.github_id) {
+          setGithubStatus("not-owner")
+        } else {
+          setGithubStatus("success")
+        }
       } catch {
         setGithubInfo(null)
         setGithubStatus("error")
@@ -89,7 +95,7 @@ function CreatePost() {
     }, 500)
 
     return () => clearTimeout(debounceRef.current)
-  }, [form.github])
+  }, [form.github, user])
 
   const handleGenerate = async () => {
     if (!form.github) return
@@ -242,7 +248,10 @@ function CreatePost() {
             {githubStatus === "error" && (
               <p className="mt-1 text-xs text-red-500">Could not fetch repo info</p>
             )}
-            {githubInfo && (
+            {githubStatus === "not-owner" && (
+              <p className="mt-1 text-xs text-red-500">You are not the owner of this repository</p>
+            )}
+            {githubInfo && githubStatus !== "not-owner" && (
               <div className="mt-2 rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 text-sm dark:border-bg-700 dark:bg-bg-900">
                 <div className="flex flex-wrap gap-x-5 gap-y-1 text-fg-600 dark:text-fg-400">
                   <span><strong className="text-fg-900 dark:text-fg-100">Owner:</strong> {githubInfo.githubOwner}</span>
@@ -336,7 +345,7 @@ function CreatePost() {
             </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || githubStatus === "not-owner"}
               className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700 disabled:opacity-50"
             >
               {isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Create Post"}
