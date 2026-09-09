@@ -103,7 +103,6 @@ async def fetch_github_repo(owner: str, repo: str, user_token: str = None):
             data = resp.json()
             _github_cache[cache_key] = (now, data)
             return data
-        print(f"[DEBUG fetch_github_repo] GitHub API {resp.status_code} for {owner}/{repo} (token={'user' if user_token else os.getenv('GITHUB_TOKEN', 'none')})")
     return None
 
 def set_session_cookie(response, token: str):
@@ -161,18 +160,10 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/auth/me")
 def get_me(request: Request, db: Session = Depends(get_db)):
-    cookies = dict(request.cookies)
-    auth_header = request.headers.get("authorization", "none")
-    print(f"\n[DEBUG /auth/me] Cookies received: {list(cookies.keys())}")
-    print(f"[DEBUG /auth/me] Session cookie present: {'session' in cookies}")
-    print(f"[DEBUG /auth/me] Authorization header: {auth_header[:80] if auth_header != 'none' else 'none'}")
-    print(f"[DEBUG /auth/me] Origin: {request.headers.get('origin', 'none')}")
     try:
         user = get_user_from_request(request, db)
-    except Exception as e:
-        print(f"[DEBUG /auth/me] Exception: {e}")
+    except Exception:
         user = get_user_from_request(request, None)
-    print(f"[DEBUG /auth/me] User found: {user is not None}")
     if not user:
         return {"user": None}
     user_data = {
@@ -227,9 +218,6 @@ def github_login():
 
 @app.get("/api/auth/github/callback")
 async def github_callback(code: str = Query(...), db: Session = Depends(get_db)):
-    print(f"\n[DEBUG GitHub Callback] Code received: {code[:8]}...")
-    print(f"[DEBUG GitHub Callback] BACKEND_URL: {BACKEND_URL}")
-    print(f"[DEBUG GitHub Callback] FRONTEND_URL: {FRONTEND_URL}")
     if not code:
         return RedirectResponse(url=f"{FRONTEND_URL}/login?error=no_code")
 
@@ -302,10 +290,6 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
 
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
-    print(f"\n[DEBUG GitHub Callback] Tokens created for user: {user.username} (id={user.id})")
-    print(f"[DEBUG GitHub Callback] Access token (first 50 chars): {access[:50]}...")
-    print(f"[DEBUG GitHub Callback] Redirecting to: {FRONTEND_URL}")
-    print(f"[DEBUG GitHub Callback] APP_ENV: {APP_ENV}")
 
     from urllib.parse import urlencode, quote
     import json as _json
@@ -324,12 +308,10 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
 
     params = urlencode({"token": access, "refresh": refresh_token, "user": quote(_json.dumps(user_data))})
     redirect_url = f"{FRONTEND_URL}?{params}"
-    print(f"[DEBUG GitHub Callback] Redirect URL (first 150 chars): {redirect_url[:150]}...")
 
     response = RedirectResponse(url=redirect_url)
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
-    print(f"[DEBUG GitHub Callback] Cookies set on response")
     return response
 
 # ── Post routes ──────────────────────────────────────────────────────
@@ -367,11 +349,8 @@ async def getGithubInfo(request: Request, url: str = Query(..., description="Git
         )
     user = get_user_from_request(request, db)
     user_token = getattr(user, "github_token", None) if user else None
-    username = getattr(user, "username", "anonymous") if user else "anonymous"
-    print(f"[DEBUG /github/info] user={username}, has_user_token={bool(user_token)}")
     data = await fetch_github_repo(owner, repo, user_token)
     if not data:
-        print(f"[DEBUG /github/info] FAILED for {owner}/{repo} (user={username}, has_token={bool(user_token)})")
         return JSONResponse(
             status_code=404,
             content={"error": "Repository not found or rate-limited. If rate-limited, try logging out and back in to refresh your GitHub token."}
