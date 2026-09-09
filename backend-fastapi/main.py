@@ -478,6 +478,58 @@ def admin_delete_all_users(request: Request, db: Session = Depends(get_db)):
     db.commit()
     return {"message": f"Deleted {count} users"}
 
+@app.post("/api/posts/{post_id}/comments")
+async def create_comment(post_id: str, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    # Simple: just save comment with user_id and content
+    body = await request.json()
+    content = body.get("content", "").strip()
+    if not content:
+        return JSONResponse(status_code=400, content={"error": "Content required"})
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+
+    comment = Comment(
+        post_id=post_id,
+        user_id=user.id,
+        content=content,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+
+    return {
+        "id": comment.id,
+        "post_id": comment.post_id,
+        "user_id": comment.user_id,
+        "content": comment.content,
+        "created_at": comment.created_at,
+    }
+
+@app.get("/api/posts/{post_id}/comments")
+def get_comments(post_id: str, db: Session = Depends(get_db)):
+    comments = (
+        db.query(Comment)
+        .filter(Comment.post_id == post_id)
+        .order_by(Comment.created_at.asc())
+        .all()
+    )
+    return [
+        {
+            "id": c.id,
+            "user_id": c.user_id,
+            "content": c.content,
+            "created_at": c.created_at,
+        }
+        for c in comments
+    ]
+
 @app.put("/api/admin/posts/{id}")
 async def admin_update_post(id: str, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
     user = get_user_from_request(request, db)

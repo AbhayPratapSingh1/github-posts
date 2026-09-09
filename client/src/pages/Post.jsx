@@ -11,6 +11,7 @@ import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
 import ImageLightbox from "../components/ImageLightbox"
+import CommentsSection from "../components/Comments"
 
 const primaryAction = (post) => {
   if (!post) return null
@@ -328,6 +329,13 @@ function Post() {
         <p>© {new Date().getFullYear()} {post.title || "Untitled"}</p>
       </div>
     </footer>
+
+    <CommentsSection
+      postId={id}
+      comments={post.comments || []}
+      setComments={setComments}
+      isLoading={isLoading}
+    />
 
     {lightbox.open && (
       <ImageLightbox

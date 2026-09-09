@@ -40,3 +40,14 @@ class User(Base):
     github_token = Column(String)
 
 
+class Comment(Base):
+    __tablename__ = 'comment'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    post_id = Column(String, nullable=False)
+    user_id = Column(Integer, nullable=False)
+    content = Column(String, nullable=False)
+    created_at = Column(String)
+    updated_at = Column(String)
+
+

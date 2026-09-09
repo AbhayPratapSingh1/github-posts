@@ -2,7 +2,7 @@ import os, sys, random
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from database import SessionLocal
-from app.models import Post, User
+from app.models import Post, User, Comment
 
 db = SessionLocal()
 
@@ -105,5 +105,31 @@ for i, post_data in enumerate(post_templates):
 db.commit()
 print(f"✅ Seeded successfully! Total new posts added: {count}")
 print(f"   Users: {[u.username for u in users]}")
+
+# Seed comments for some posts
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc).isoformat()
+comment_templates = [
+    {"post_id": "seed-1", "user_id": 1, "content": "Great post! Really enjoyed reading this."},
+    {"post_id": "seed-2", "user_id": 2, "content": "Very informative, thanks for sharing!"},
+    {"post_id": "seed-3", "user_id": 3, "content": "I've been looking for something like this."},
+    {"post_id": "seed-4", "user_id": 1, "content": "Can't wait to try this out!"},
+    {"post_id": "seed-5", "user_id": 2, "content": "Bookmarking this for later."},
+]
+
+for c in comment_templates:
+    existing = db.query(Comment).filter(Comment.post_id == c["post_id"], Comment.user_id == c["user_id"]).first()
+    if not existing:
+        comment = Comment(
+            post_id=c["post_id"],
+            user_id=c["user_id"],
+            content=c["content"],
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(comment)
+    db.commit()
+
+print(f"   Comments seeded: 5")
 
 db.close()
