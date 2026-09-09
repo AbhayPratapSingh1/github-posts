@@ -561,8 +561,14 @@ async def createPost(body: CreatePostRequest, request: Request, db: Session = De
     if body.github:
         owner, repo = parse_github_url(body.github)
         if owner and repo:
-            gh = await fetch_github_repo(owner, repo)
+            gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
             if gh:
+                gh_owner_id = gh.get("owner", {}).get("id")
+                if gh_owner_id and user.github_id and gh_owner_id != user.github_id:
+                    return JSONResponse(
+                        status_code=403,
+                        content={"error": "You are not the owner of this repository"}
+                    )
                 data["language"] = data.get("language") or gh.get("language")
                 data["defaultBranch"] = gh.get("default_branch", data.get("defaultBranch"))
                 data["lastPushAt"] = gh.get("pushed_at", data.get("lastPushAt"))
@@ -618,13 +624,24 @@ async def updatePost(id, body: CreatePostRequest, request: Request, db: Session 
     if body.github:
         owner, repo = parse_github_url(body.github)
         if owner and repo:
-            gh = await fetch_github_repo(owner, repo)
+            gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
             if gh:
+                gh_owner_id = gh.get("owner", {}).get("id")
+                if gh_owner_id and user.github_id and gh_owner_id != user.github_id:
+                    return JSONResponse(
+                        status_code=403,
+                        content={"error": "You are not the owner of this repository"}
+                    )
                 data["language"] = data.get("language") or gh.get("language")
                 data["defaultBranch"] = gh.get("defaultBranch", data.get("defaultBranch"))
-                data["lastPushAt"] = gh.get("pushedAt", data.get("lastPushAt"))
-                data["githubOwner"] = gh.get("githubOwner")
-                data["stats"] = gh.get("stats")
+                data["lastPushAt"] = gh.get("lastPushAt", data.get("lastPushAt"))
+                data["githubOwner"] = gh.get("owner", {}).get("login")
+                data["stats"] = {
+                    "stars": gh.get("stargazers_count", 0),
+                    "forks": gh.get("forks_count", 0),
+                    "watchers": gh.get("watchers_count", 0),
+                    "openIssues": gh.get("open_issues_count", 0),
+                }
 
     updated = postHandler.update_post(id, db, data)
     return updated
