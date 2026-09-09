@@ -24,6 +24,8 @@ engine = create_engine(
 
 TestSessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
+# Drop and recreate all tables to ensure schema is up to date
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 

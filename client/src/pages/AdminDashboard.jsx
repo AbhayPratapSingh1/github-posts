@@ -72,6 +72,12 @@ function AdminDashboard() {
     return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
   }
 
+  const formatISO = (iso) => {
+    if (!iso) return "-"
+    const d = new Date(iso)
+    return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen grid place-items-center bg-bg-50 dark:bg-bg-950">
@@ -323,6 +329,16 @@ function AdminDashboard() {
                 <div>
                   <div className="text-xs uppercase text-fg-500">Created</div>
                   <div className="mt-1">{formatDate(detailPost.dateOfCreation)}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs uppercase text-fg-500">Post Created At</div>
+                  <div className="mt-1">{formatISO(detailPost.created_at)}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-fg-500">Last Updated At</div>
+                  <div className="mt-1">{formatISO(detailPost.updated_at)}</div>
                 </div>
               </div>
               <div>

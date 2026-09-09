@@ -403,6 +403,8 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
             "githubOwner": p.githubOwner,
             "dateOfCreation": p.dateOfCreation,
             "user_id": p.user_id,
+            "created_at": p.created_at,
+            "updated_at": p.updated_at,
         })
 
     user_list = []
@@ -462,6 +464,7 @@ async def admin_update_post(id: str, body: CreatePostRequest, request: Request, 
         return JSONResponse(status_code=404, content={"error": "Post not found"})
 
     data = body.model_dump(exclude_unset=True)
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # Never allow admin to change ownership fields
     data.pop("user_id", None)
@@ -708,6 +711,9 @@ async def createPost(body: CreatePostRequest, request: Request, db: Session = De
     data["id"] = post_id
     data["user_id"] = user.id
     data["dateOfCreation"] = int(time.time())
+    now = datetime.now(timezone.utc).isoformat()
+    data["created_at"] = now
+    data["updated_at"] = now
 
     if body.github:
         owner, repo = parse_github_url(body.github)
@@ -771,6 +777,7 @@ async def updatePost(id, body: CreatePostRequest, request: Request, db: Session 
         )
 
     data = body.model_dump(exclude_unset=True)
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     if body.github:
         owner, repo = parse_github_url(body.github)
