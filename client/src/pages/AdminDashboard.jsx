@@ -191,7 +191,18 @@ function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-4 py-3">{post.language || "-"}</td>
-                      <td className="px-4 py-3">{post.githubOwner || "-"}</td>
+                      <td className="px-4 py-3">
+                        {post.githubOwner ? (
+                          <a
+                            href={`https://github.com/${post.githubOwner}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary-600 hover:underline dark:text-primary-400"
+                          >
+                            {post.githubOwner}
+                          </a>
+                        ) : "-"}
+                      </td>
                       <td className="px-4 py-3">{(post.stats || {}).stars || 0}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -265,7 +276,14 @@ function AdminDashboard() {
                             <img src={u.avatar_url} alt="" className="size-8 rounded-full" />
                           )}
                           <div>
-                            <div className="font-medium">{u.name || u.username}</div>
+                            <a
+                              href={`https://github.com/${u.username}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                            >
+                              {u.name || u.username}
+                            </a>
                             <div className="text-xs text-fg-500">@{u.username}</div>
                           </div>
                         </div>
@@ -320,7 +338,18 @@ function AdminDashboard() {
                 </div>
                 <div>
                   <div className="text-xs uppercase text-fg-500">Owner</div>
-                  <div className="mt-1">{detailPost.githubOwner || "-"}</div>
+                  <div className="mt-1">
+                    {detailPost.githubOwner ? (
+                      <a
+                        href={`https://github.com/${detailPost.githubOwner}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary-600 hover:underline dark:text-primary-400"
+                      >
+                        {detailPost.githubOwner}
+                      </a>
+                    ) : "-"}
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs uppercase text-fg-500">User ID</div>

@@ -128,6 +128,19 @@ function Post() {
         <p className="mt-4 max-w-xl text-lg text-fg-600 dark:text-fg-400">
           {post.shortDescription || "No description available."}
         </p>
+        {post.githubOwner && (
+          <p className="mt-2 text-sm text-fg-500 dark:text-fg-400">
+            by{" "}
+            <a
+              href={`https://github.com/${post.githubOwner}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+            >
+              {post.githubOwner}
+            </a>
+          </p>
+        )}
         {(readTime > 0 || post.hosted?.url) && (
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-fg-500 dark:text-fg-400">
             {readTime > 0 && <span>Read: {readTime} min</span>}
@@ -208,7 +221,18 @@ function Post() {
           </div>
           <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 dark:border-bg-700 dark:bg-bg-900">
             <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Owner</p>
-            <p className="mt-1 text-sm font-medium text-fg-900 dark:text-fg-100">{post.githubOwner || "N/A"}</p>
+            <p className="mt-1 text-sm font-medium text-fg-900 dark:text-fg-100">
+              {post.githubOwner ? (
+                <a
+                  href={`https://github.com/${post.githubOwner}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary-600 hover:underline dark:text-primary-400"
+                >
+                  {post.githubOwner}
+                </a>
+              ) : "N/A"}
+            </p>
           </div>
           <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 dark:border-bg-700 dark:bg-bg-900">
             <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Default Branch</p>
