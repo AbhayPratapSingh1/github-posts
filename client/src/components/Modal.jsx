@@ -62,16 +62,46 @@ function Modal({ open, onClose, children, size = "md", className = "" }) {
 
   return (
     <div
-      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        zIndex: 9999,
+      }}
     >
       <div
-        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          backgroundColor: "rgba(0,0,0,0.5)",
+          backdropFilter: "blur(4px)",
+        }}
         onClick={onClose}
       />
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className={`relative w-full ${sizes[size] || sizes.md} rounded-xl border border-bg-200 bg-bg-50 p-6 shadow-xl outline-none dark:border-bg-700 dark:bg-bg-900 ${className}`}
+        style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: "384px",
+          borderRadius: "12px",
+          border: "1px solid var(--color-bg-200, #e5e5e5)",
+          backgroundColor: "var(--color-bg-50, #fafafa)",
+          padding: "24px",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+          outline: "none",
+        }}
+        className={`${sizes[size] || ""} dark:border-bg-800 dark:bg-bg-900 ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
