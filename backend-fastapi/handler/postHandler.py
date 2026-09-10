@@ -66,6 +66,24 @@ class Post_handler:
         like_count, liked = self._like_info(db, post, user)
         return self._post_to_dict(post, author, like_count, liked)
 
+    def get_liked_posts(self, db, user, limit=50):
+        likes = (
+            db.query(Like)
+            .filter(Like.user_id == user.id)
+            .order_by(Like.created_at.desc(), Like.id.desc())
+            .limit(limit)
+            .all()
+        )
+        result = []
+        for like in likes:
+            post = db.query(Post).filter(Post.id == like.post_id).first()
+            if not post:
+                continue
+            author = self._resolve_user(db, post)
+            like_count, liked = self._like_info(db, post, user)
+            result.append(self._post_to_dict(post, author, like_count, liked))
+        return {"posts": result, "total": len(result)}
+
     def get_post_raw(self, id, db):
         return db.query(Post).filter(Post.id == id).first()
 

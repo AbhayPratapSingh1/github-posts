@@ -4,6 +4,7 @@ import Home from "./pages/Home"
 import Post from "./pages/Post"
 import CreatePost from "./pages/CreatePost"
 import Login from "./pages/Login"
+import Liked from "./pages/Liked"
 import AdminLogin from "./pages/AdminLogin"
 import AdminDashboard from "./pages/AdminDashboard"
 import ProtectedRoute from "./components/ProtectedRoute"
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/liked" element={<ProtectedRoute><Liked /></ProtectedRoute>} />
         <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
         <Route path="/post/:id/edit" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
         <Route path="/post/:id" element={<Post />} />

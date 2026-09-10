@@ -1,20 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { FaPlay, FaPlus, FaGithub, FaSpinner } from "react-icons/fa"
+import { FaPlus, FaHeart, FaSpinner } from "react-icons/fa"
 import { getPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
-import LikeButton from "../components/LikeButton"
+import PostCard from "../components/PostCard"
 
 const PAGE_SIZE = 12
-
-const primaryLabel = (type) => {
-  if (type === "playable") return <><FaPlay /> Playable</>
-  if (type === "hosted") return "Hosted"
-  return null
-}
 
 function Home() {
   const { user } = useAuth()
@@ -39,11 +33,9 @@ function Home() {
     }
   }, [addToast])
 
-  const handleLikeChange = (postId, state) => {
+  const handleLikeChange = (post, state) => {
     setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, liked: state.liked, likeCount: state.likeCount } : p
-      )
+      prev.map((p) => p.id === post.id ? { ...p, ...state } : p)
     )
   }
 
@@ -84,6 +76,13 @@ function Home() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
+              <Link
+                to="/liked"
+                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-red-400 hover:text-red-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-red-500 dark:hover:text-red-400"
+              >
+                <FaHeart />
+                Liked
+              </Link>
               <Link
                 to="/create"
                 className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
@@ -128,64 +127,9 @@ function Home() {
       )}
 
       <div className="mt-10 space-y-4">
-        {posts.map((post) => {
-          const label = primaryLabel(post.type)
-          return (
-            <Link
-              key={post.id}
-              to={`/post/${post.id}`}
-              className="group flex flex-col gap-3 rounded-xl border border-bg-200 bg-bg-100 p-5 transition-colors hover:border-primary-400 dark:border-bg-800 dark:bg-bg-900 dark:hover:border-primary-600 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold group-hover:text-primary-600 dark:group-hover:text-primary-400">
-                    {post.title}
-                  </h2>
-                  {label && (
-                    <span className="flex items-center gap-1.5 rounded-full bg-primary-600/10 px-2.5 py-0.5 text-xs font-semibold text-primary-700 dark:text-primary-400">
-                      {label}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-sm text-fg-600 dark:text-fg-400">
-                  {post.shortDescription}
-                </p>
-                <div className="mt-2 flex items-center gap-3 text-xs text-fg-500 dark:text-fg-400">
-                  {post.githubOwner && (
-                    <span>
-                      by{" "}
-                      <span
-                        onClick={() => window.open(`https://github.com/${post.githubOwner}`, "_blank")}
-                        className="font-medium text-primary-600 hover:underline dark:text-primary-400 cursor-pointer"
-                      >
-                        {post.authorName || post.authorUsername || post.githubOwner}
-                      </span>
-                    </span>
-                  )}
-                  {post.created_at && (
-                    <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-4 text-sm text-fg-500 dark:text-fg-400">
-                {post.hosted?.url && (
-                  <span className="hidden items-center gap-1.5 sm:flex">
-                    <FaPlay className="text-xs" />
-                    {post.hosted.plateForm}
-                  </span>
-                )}
-                {post.github && <FaGithub className="text-base" />}
-                <LikeButton
-                  postId={post.id}
-                  liked={post.liked}
-                  likeCount={post.likeCount}
-                  onStateChange={(state) => handleLikeChange(post.id, state)}
-                />
-              </div>
-            </Link>
-          )
-        })}
+        {posts.map((post) => (
+          <PostCard key={post.id} post={post} onLikeChange={handleLikeChange} />
+        ))}
       </div>
 
       <div ref={sentinelRef} className="py-4">

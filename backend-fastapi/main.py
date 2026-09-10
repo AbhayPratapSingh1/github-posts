@@ -782,6 +782,18 @@ def getPosts(request: Request, db: Session = Depends(get_db)):
     except Exception:
         return posts
 
+@app.get('/api/posts/liked')
+def getLikedPosts(request: Request, db: Session = Depends(get_db)):
+    if db is None:
+        return JSONResponse(status_code=503, content={"error": "Service unavailable"})
+    user = get_user_from_request(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    try:
+        return postHandler.get_liked_posts(db, user)
+    except Exception:
+        return {"posts": [], "total": 0}
+
 @app.get('/api/posts/{id}')
 def getPostById(id, request: Request, db: Session = Depends(get_db)):
     try:

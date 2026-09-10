@@ -126,6 +126,12 @@ A chronological log of how this project is being built. Each entry describes the
 - `POST /api/posts/{id}/like` takes an **explicit `{"liked": true|false}`** (no ambiguous server toggle) and returns `{liked, like_count}`; like counts + `liked` flag included in all post payloads.
 - `LikeButton.jsx`: optimistic like/unlike on the feed and post page, server-confirmed on success, revert + error toast on failure; layout-stable styling (constant border/padding/weight) so toggling never shifts the page.
 
+## 23. Liked page
+- `GET /api/posts/liked` returns the signed-in user's liked posts sorted by **most recently liked first** (`created_at` desc, `id` desc tiebreak); 401 without auth, 503 when DB is down.
+- Card markup extracted into a shared `PostCard` component (used by Home feed and Liked page).
+- A **Liked** button in the header (signed-in users) opens a dedicated `/liked` page showing liked posts, newest like first; unliking a card removes it from the list immediately. Protected by `ProtectedRoute`.
+- The Liked page has a "Back to all posts" button linking back to `/`.
+
 ---
 
 ## Current stack

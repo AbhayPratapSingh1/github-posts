@@ -159,3 +159,47 @@ class TestLikeFields:
         assert len(posts) == 1
         assert posts[0]["likeCount"] == 1
         assert posts[0]["liked"] is False
+
+
+class TestLikedPosts:
+    def test_returns_liked_posts_most_recent_first(self, client, db):
+        create_test_post(db, title="First Post")
+        create_test_post(db, title="Second Post")
+        create_test_post(db, title="Unliked Post")
+        user, token = _create_user_and_token(db)
+        other, other_token = _create_user_and_token(db, github_id=99999, username="otheruser")
+
+        client.post(
+            "/api/posts/first-post/like",
+            headers=_auth(token),
+            json={"liked": True},
+        )
+        client.post(
+            "/api/posts/second-post/like",
+            headers=_auth(token),
+            json={"liked": True},
+        )
+        client.post(
+            "/api/posts/first-post/like",
+            headers=_auth(other_token),
+            json={"liked": True},
+        )
+
+        resp = client.get("/api/posts/liked", headers=_auth(token))
+        assert resp.status_code == 200
+        posts = resp.json()["posts"]
+        assert [p["id"] for p in posts] == ["second-post", "first-post"]
+        assert posts[0]["liked"] is True
+        assert posts[0]["likeCount"] == 1
+        assert posts[1]["likeCount"] == 2
+
+    def test_liked_posts_requires_auth(self, client, db):
+        resp = client.get("/api/posts/liked")
+        assert resp.status_code == 401
+
+    def test_liked_posts_empty_for_user_without_likes(self, client, db):
+        create_test_post(db, title="First Post")
+        _, token = _create_user_and_token(db)
+        resp = client.get("/api/posts/liked", headers=_auth(token))
+        assert resp.status_code == 200
+        assert resp.json() == {"posts": [], "total": 0}

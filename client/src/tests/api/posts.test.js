@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { getPosts, getPostById, createPost, updatePost, deletePost, getGithubInfo, generatePostContent, likePost } from "../../api/posts.js"
+import { getPosts, getPostById, createPost, updatePost, deletePost, getGithubInfo, generatePostContent, likePost, getLikedPosts } from "../../api/posts.js"
 import { API_BASE } from "../../api/client.js"
 
 beforeEach(() => {
@@ -111,6 +111,25 @@ describe("likePost", () => {
     expect(fetch.mock.calls[0][0]).toContain("/posts/my-post/like")
     expect(fetch.mock.calls[0][1].method).toBe("POST")
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ liked: true })
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer tok")
+  })
+})
+
+describe("getLikedPosts", () => {
+  it("fetches liked posts for the signed-in user", async () => {
+    localStorage.setItem("session_token", "tok")
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        posts: [{ id: "a", liked: true, likeCount: 1 }],
+        total: 1,
+      }),
+    }))
+
+    const res = await getLikedPosts()
+    expect(res.total).toBe(1)
+    expect(res.posts[0].id).toBe("a")
+    expect(fetch.mock.calls[0][0]).toContain("/posts/liked")
     expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer tok")
   })
 })

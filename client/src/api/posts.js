@@ -38,6 +38,8 @@ export const likePost = (id, liked) =>
     body: JSON.stringify({ liked }),
   })
 
+export const getLikedPosts = () => request("/posts/liked")
+
 export const createPost = (data) =>
   request("/posts", {
     method: "POST",
