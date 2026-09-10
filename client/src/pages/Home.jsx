@@ -7,6 +7,7 @@ import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
 import PostCard from "../components/PostCard"
+import Tooltip from "../components/Tooltip"
 
 const PAGE_SIZE = 12
 
@@ -76,36 +77,44 @@ function Home() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <Link
-                to="/users"
-                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
-              >
-                <FaUsers />
-                Users
-              </Link>
-              <Link
-                to="/liked"
-                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-red-400 hover:text-red-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-red-500 dark:hover:text-red-400"
-              >
-                <FaHeart />
-                Liked
-              </Link>
-              <Link
-                to="/create"
-                className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
-              >
-                <FaPlus className="text-xs" />
-                New Post
-              </Link>
+              <Tooltip tip="users">
+                <Link
+                  to="/users"
+                  className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
+                >
+                  <FaUsers />
+                  Users
+                </Link>
+              </Tooltip>
+              <Tooltip tip="liked">
+                <Link
+                  to="/liked"
+                  className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-red-400 hover:text-red-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-red-500 dark:hover:text-red-400"
+                >
+                  <FaHeart />
+                  Liked
+                </Link>
+              </Tooltip>
+              <Tooltip tip="newPost">
+                <Link
+                  to="/create"
+                  className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+                >
+                  <FaPlus className="text-xs" />
+                  New Post
+                </Link>
+              </Tooltip>
               <ProfileMenu />
             </>
           ) : (
-            <Link
-              to="/login"
-              className="flex items-center gap-2 rounded-lg bg-bg-900 px-4 py-1.5 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
-            >
-              Sign in
-            </Link>
+            <Tooltip tip="signIn">
+              <Link
+                to="/login"
+                className="flex items-center gap-2 rounded-lg bg-bg-900 px-4 py-1.5 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
+              >
+                Sign in
+              </Link>
+            </Tooltip>
           )}
         </div>
       </div>

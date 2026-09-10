@@ -3,6 +3,7 @@ import { FaHeart, FaRegHeart } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import { likePost } from "../api/posts"
+import Tooltip from "./Tooltip"
 
 function LikeButton({ postId, liked, likeCount, onStateChange }) {
   const [state, setState] = useState(null)
@@ -49,21 +50,23 @@ function LikeButton({ postId, liked, likeCount, onStateChange }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={busy}
-      aria-pressed={current.liked}
-      aria-label={current.liked ? "Unlike post" : "Like post"}
-      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-        current.liked
-          ? "border-red-300 bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:border-red-800 dark:text-red-400"
-          : "border-bg-300 text-fg-600 hover:border-red-400 hover:text-red-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-red-500 dark:hover:text-red-400"
-      }`}
-    >
-      {current.liked ? <FaHeart /> : <FaRegHeart />}
-      <span>{current.likeCount}</span>
-    </button>
+    <Tooltip tip={current.liked ? "unlike" : "like"}>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={busy}
+        aria-pressed={current.liked}
+        aria-label={current.liked ? "Unlike post" : "Like post"}
+        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+          current.liked
+            ? "border-red-300 bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:border-red-800 dark:text-red-400"
+            : "border-bg-300 text-fg-600 hover:border-red-400 hover:text-red-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-red-500 dark:hover:text-red-400"
+        }`}
+      >
+        {current.liked ? <FaHeart /> : <FaRegHeart />}
+        <span>{current.likeCount}</span>
+      </button>
+    </Tooltip>
   )
 }
 

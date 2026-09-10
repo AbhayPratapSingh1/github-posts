@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { FaSignOutAlt, FaCalendarAlt, FaEnvelope } from "react-icons/fa"
 import Modal from "./Modal"
+import Tooltip from "./Tooltip"
 import { useAuth } from "../context/AuthContext"
 
 function ProfileMenu() {
@@ -23,22 +24,24 @@ function ProfileMenu() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-2 rounded-full border border-bg-300 p-0.5 transition-colors hover:border-primary-400 dark:border-bg-700 dark:hover:border-primary-600"
-      >
-        {user.avatar_url ? (
-          <img
-            src={user.avatar_url}
-            alt={user.name || user.username}
-            className="size-8 rounded-full"
-          />
-        ) : (
-          <span className="flex size-8 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white">
-            {(user.name || user.username)?.[0]?.toUpperCase() || "?"}
-          </span>
-        )}
-      </button>
+      <Tooltip tip="profile">
+        <button
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-2 rounded-full border border-bg-300 p-0.5 transition-colors hover:border-primary-400 dark:border-bg-700 dark:hover:border-primary-600"
+        >
+          {user.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt={user.name || user.username}
+              className="size-8 rounded-full"
+            />
+          ) : (
+            <span className="flex size-8 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white">
+              {(user.name || user.username)?.[0]?.toUpperCase() || "?"}
+            </span>
+          )}
+        </button>
+      </Tooltip>
 
       <Modal open={open} onClose={() => setOpen(false)}>
         <div className="flex flex-col items-center gap-5 py-2">
@@ -89,16 +92,18 @@ function ProfileMenu() {
             )}
           </div>
 
-          <button
-            onClick={() => {
-              setOpen(false)
-              logout()
-            }}
-            className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-5 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900"
-          >
-            <FaSignOutAlt className="text-xs" />
-            Sign out
-          </button>
+          <Tooltip tip="signOut">
+            <button
+              onClick={() => {
+                setOpen(false)
+                logout()
+              }}
+              className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-5 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900"
+            >
+              <FaSignOutAlt className="text-xs" />
+              Sign out
+            </button>
+          </Tooltip>
         </div>
       </Modal>
     </>

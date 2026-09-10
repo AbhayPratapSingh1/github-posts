@@ -7,6 +7,7 @@ import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
 import PostCard from "../components/PostCard"
+import Tooltip from "../components/Tooltip"
 
 function Liked() {
   const { user } = useAuth()
@@ -48,21 +49,25 @@ function Liked() {
         <div className="flex items-center gap-3">
           {user && (
             <>
-              <Link
-                to="/liked"
-                className="flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-600 dark:text-red-400"
-                aria-current="page"
-              >
-                <FaHeart />
-                Liked
-              </Link>
-              <Link
-                to="/create"
-                className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
-              >
-                <FaPlus className="text-xs" />
-                New Post
-              </Link>
+              <Tooltip tip="liked">
+                <Link
+                  to="/liked"
+                  className="flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-600 dark:text-red-400"
+                  aria-current="page"
+                >
+                  <FaHeart />
+                  Liked
+                </Link>
+              </Tooltip>
+              <Tooltip tip="newPost">
+                <Link
+                  to="/create"
+                  className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+                >
+                  <FaPlus className="text-xs" />
+                  New Post
+                </Link>
+              </Tooltip>
               <ProfileMenu />
             </>
           )}
@@ -71,13 +76,15 @@ function Liked() {
     </header>
 
     <main className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
-      <Link
-        to="/"
-        className="mb-6 inline-flex items-center gap-2 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
-      >
-        <FaArrowLeft className="text-xs" />
-        Back to all posts
-      </Link>
+      <Tooltip tip="backToPosts" className="mb-6">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
+        >
+          <FaArrowLeft className="text-xs" />
+          Back to all posts
+        </Link>
+      </Tooltip>
 
       <p className="mb-3 text-xs font-semibold tracking-widest text-primary-600 uppercase dark:text-primary-400">
         Liked

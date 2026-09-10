@@ -136,6 +136,13 @@ A chronological log of how this project is being built. Each entry describes the
 - `GET /api/users` returns a public user listing (id, username, name, avatar, bio, join date, `postCount`), newest users first; sensitive fields (`email`, `github_token`) are excluded. 503 when DB is down.
 - A **Users** button in the header (plus the `/users` route) opens a grid of user cards — avatar, name, `@handle`, bio, post count, join date, GitHub profile link. Accessible without signing in; like the Liked page it has a "Back to all posts" button.
 
+## 25. Tooltips for every button + simplify the Create Post submit button
+- All tooltip labels are defined in one config file (`client/src/config/tooltips.js`, a frozen `TOOLTIPS` map) — no hard-coded strings in components.
+- New `client/src/components/Tooltip.jsx` renders a hover/focus tooltip bubble (CSS in `index.css` with light/dark styling). It keys off the config (`tip="newPost"`), supports `top`/`bottom`/`left`/`right` placement, and passes through a `className` for positioning (so it works with `fixed` buttons like "Back to top" and `absolute` buttons in the lightbox/modal).
+- Tooltips applied to every interactive element: Home/Liked/Users header links (New Post, Liked, Users, Sign in), profile menu (avatar, sign out), Like button (like/unlike), PostCard GitHub icon, Post page (GitHub, Play Now / Visit Site, View Source, Edit, Delete), Create Post page (back, Cancel, Create, Generate with AI), Modal close, image lightbox (close, prev, next), Back-to-top, comments (post, save, cancel, edit, delete, see all), and the admin pages (login, logout, delete-all, per-row edit/view/details/github/delete).
+- Create Post submit button simplified: dropped the large `px-5 py-2.5` + `shadow-lg shadow-primary-600/25` glow for a plain `bg-primary-600 px-4 py-2` filled button that matches the Cancel button's simple outline style language.
+- Verified: `npm run lint` (no new warnings), `npm run build`, 60 vitest tests green (9 test files, incl. a new `Tooltip.test.jsx`).
+
 ---
 
 ## Current stack

@@ -5,6 +5,7 @@ import { createPost, updatePost, adminUpdatePost, getGithubInfo, getPostById, ge
 import { useToast } from "../context/ToastContext"
 import { useAuth } from "../context/AuthContext"
 import Logo from "../components/Logo"
+import Tooltip from "../components/Tooltip"
 
 const ReactQuill = lazy(() => import("react-quill-new"))
 
@@ -165,7 +166,9 @@ function CreatePost() {
       <header className="border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
-            <FaArrowLeft className="text-xs" />
+            <Tooltip tip="back" side="right">
+              <FaArrowLeft className="text-xs" />
+            </Tooltip>
             <Logo className="size-7" />
             <span className="text-sm font-bold tracking-wide uppercase">Post Panel</span>
           </Link>
@@ -265,10 +268,11 @@ function CreatePost() {
                   <span><strong className="text-fg-900 dark:text-fg-100">Stars:</strong> {githubInfo.stats?.stars}</span>
                   <span><strong className="text-fg-900 dark:text-fg-100">Forks:</strong> {githubInfo.stats?.forks}</span>
                 </div>
+                <Tooltip tip="generateAI">
                 <button
                   type="button"
                   onClick={handleGenerate}
-                  disabled={generating}
+                  disabled={generating || githubStatus === "not-owner"}
                   className="mt-3 flex items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100 disabled:opacity-50 dark:border-primary-700 dark:bg-primary-950 dark:text-primary-300 dark:hover:bg-primary-900"
                 >
                   {generating ? (
@@ -280,6 +284,7 @@ function CreatePost() {
                     "Generate with AI"
                   )}
                 </button>
+              </Tooltip>
                 {generateError && (
                   <p className="mt-2 text-xs text-red-500">{generateError}</p>
                 )}
@@ -342,19 +347,23 @@ function CreatePost() {
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4">
-            <Link
-              to={isAdmin ? "/admin/dashboard" : "/"}
-              className="rounded-lg border border-bg-300 px-5 py-2.5 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={isSubmitting || githubStatus === "not-owner"}
-              className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700 disabled:opacity-50"
-            >
-              {isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Create Post"}
-            </button>
+            <Tooltip tip="cancel">
+              <Link
+                to={isAdmin ? "/admin/dashboard" : "/"}
+                className="rounded-lg border border-bg-300 px-5 py-2.5 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
+              >
+                Cancel
+              </Link>
+            </Tooltip>
+            <Tooltip tip={isEdit ? "saveChanges" : "createPost"}>
+              <button
+                type="submit"
+                disabled={isSubmitting || githubStatus === "not-owner"}
+                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+              >
+                {isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Create Post"}
+              </button>
+            </Tooltip>
           </div>
         </form>
       </main>

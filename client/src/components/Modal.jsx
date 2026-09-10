@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import Tooltip from "./Tooltip"
 
 const sizes = {
   sm: "max-w-sm",
@@ -104,13 +105,15 @@ function Modal({ open, onClose, children, size = "md", className = "" }) {
         className={`${sizes[size] || ""} dark:border-bg-800 dark:bg-bg-900 ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 flex size-7 items-center justify-center rounded-full text-fg-400 transition-colors hover:bg-bg-100 hover:text-fg-700 dark:hover:bg-bg-800 dark:hover:text-fg-200"
-          aria-label="Close"
-        >
-          ✕
-        </button>
+        <Tooltip tip="close" side="left" className="absolute top-3 right-3">
+          <button
+            onClick={onClose}
+            className="flex size-7 items-center justify-center rounded-full text-fg-400 transition-colors hover:bg-bg-100 hover:text-fg-700 dark:hover:bg-bg-800 dark:hover:text-fg-200"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </Tooltip>
         {children}
       </div>
     </div>

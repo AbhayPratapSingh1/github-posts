@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { FaTimes, FaChevronLeft, FaChevronRight } from "react-icons/fa"
+import Tooltip from "./Tooltip"
 
 export default function ImageLightbox({ images, startIndex = 0, onClose }) {
   const [currentIndex, setCurrentIndex] = useState(startIndex)
@@ -62,22 +63,26 @@ export default function ImageLightbox({ images, startIndex = 0, onClose }) {
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
       onClick={onClose}
     >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-        aria-label="Close"
-      >
-        <FaTimes />
-      </button>
+      <Tooltip tip="close" side="left" className="absolute top-4 right-4 z-10">
+        <button
+          onClick={onClose}
+          className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          aria-label="Close"
+        >
+          <FaTimes />
+        </button>
+      </Tooltip>
 
       {images.length > 1 && (
-        <button
-          onClick={(e) => { e.stopPropagation(); goPrev() }}
-          className="absolute left-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-          aria-label="Previous"
-        >
-          <FaChevronLeft />
-        </button>
+        <Tooltip tip="prevImage" side="bottom" className="absolute left-4 z-10">
+          <button
+            onClick={(e) => { e.stopPropagation(); goPrev() }}
+            className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            aria-label="Previous"
+          >
+            <FaChevronLeft />
+          </button>
+        </Tooltip>
       )}
 
       <img
@@ -88,13 +93,15 @@ export default function ImageLightbox({ images, startIndex = 0, onClose }) {
       />
 
       {images.length > 1 && (
-        <button
-          onClick={(e) => { e.stopPropagation(); goNext() }}
-          className="absolute right-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-          aria-label="Next"
-        >
-          <FaChevronRight />
-        </button>
+        <Tooltip tip="nextImage" side="bottom" className="absolute right-4 z-10">
+          <button
+            onClick={(e) => { e.stopPropagation(); goNext() }}
+            className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            aria-label="Next"
+          >
+            <FaChevronRight />
+          </button>
+        </Tooltip>
       )}
 
       {images.length > 1 && (
