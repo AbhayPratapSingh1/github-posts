@@ -12,6 +12,7 @@ import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
 import ImageLightbox from "../components/ImageLightbox"
 import CommentsSection from "../components/Comments"
+import LikeButton from "../components/LikeButton"
 
 const primaryAction = (post) => {
   if (!post) return null
@@ -92,6 +93,10 @@ function Post() {
     const sources = allImages.map((i) => i.src)
     setLightbox({ open: true, startIndex: index, images: sources })
   }, [])
+
+  const handleLikeChange = (state) => {
+    setPost((prev) => (prev ? { ...prev, ...state } : prev))
+  }
 
   if (isLoading || !post) {
     return <div className="min-h-screen grid place-items-center bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
@@ -208,6 +213,12 @@ function Post() {
               View Source
             </a>
           )}
+          <LikeButton
+            postId={post.id}
+            liked={post.liked}
+            likeCount={post.likeCount}
+            onStateChange={handleLikeChange}
+          />
         </div>
       </section>
 

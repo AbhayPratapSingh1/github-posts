@@ -1,10 +1,10 @@
-from app.models import Post, User
+from app.models import Post, User, Like
 
 class Post_handler:
     def __init__(self):
         pass
 
-    def _post_to_dict(self, post, user=None):
+    def _post_to_dict(self, post, user=None, like_count=0, liked=False):
         return {
             "id": post.id,
             "user_id": post.user_id,
@@ -25,6 +25,8 @@ class Post_handler:
             "updated_at": post.updated_at,
             "authorName": user.name if user else None,
             "authorUsername": user.username if user else None,
+            "likeCount": like_count,
+            "liked": liked,
         }
 
     def _resolve_user(self, db, post):
@@ -34,21 +36,35 @@ class Post_handler:
             return db.query(User).filter(User.username == post.githubOwner).first()
         return None
 
-    def get_all_posts(self, db, offset=0, limit=12):
+    def _like_info(self, db, post, user):
+        like_count = db.query(Like).filter(Like.post_id == post.id).count()
+        liked = False
+        if user is not None:
+            liked = (
+                db.query(Like)
+                .filter(Like.post_id == post.id, Like.user_id == user.id)
+                .first()
+                is not None
+            )
+        return like_count, liked
+
+    def get_all_posts(self, db, offset=0, limit=12, user=None):
         total = db.query(Post).count()
         posts = db.query(Post).order_by(Post.dateOfCreation.desc().nullslast()).offset(offset).limit(limit).all()
         result = []
         for post in posts:
-            user = self._resolve_user(db, post)
-            result.append(self._post_to_dict(post, user))
+            author = self._resolve_user(db, post)
+            like_count, liked = self._like_info(db, post, user)
+            result.append(self._post_to_dict(post, author, like_count, liked))
         return {"posts": result, "total": total, "offset": offset, "limit": limit}
 
-    def get_post_by_id(self, id, db):
+    def get_post_by_id(self, id, db, user=None):
         post = db.query(Post).filter(Post.id == id).first()
         if not post:
             return None
-        user = self._resolve_user(db, post)
-        return self._post_to_dict(post, user)
+        author = self._resolve_user(db, post)
+        like_count, liked = self._like_info(db, post, user)
+        return self._post_to_dict(post, author, like_count, liked)
 
     def get_post_raw(self, id, db):
         return db.query(Post).filter(Post.id == id).first()

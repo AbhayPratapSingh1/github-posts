@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { getPosts, getPostById, createPost, updatePost, deletePost, getGithubInfo, generatePostContent } from "../../api/posts.js"
+import { getPosts, getPostById, createPost, updatePost, deletePost, getGithubInfo, generatePostContent, likePost } from "../../api/posts.js"
 import { API_BASE } from "../../api/client.js"
 
 beforeEach(() => {
@@ -94,6 +94,24 @@ describe("deletePost", () => {
     await deletePost("to-delete")
     expect(fetch.mock.calls[0][1].method).toBe("DELETE")
     expect(fetch.mock.calls[0][0]).toContain("/posts/to-delete")
+  })
+})
+
+describe("likePost", () => {
+  it("sends explicit liked flag to /posts/:id/like", async () => {
+    localStorage.setItem("session_token", "tok")
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ liked: true, like_count: 1 }),
+    }))
+
+    const res = await likePost("my-post", true)
+    expect(res.liked).toBe(true)
+    expect(res.like_count).toBe(1)
+    expect(fetch.mock.calls[0][0]).toContain("/posts/my-post/like")
+    expect(fetch.mock.calls[0][1].method).toBe("POST")
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ liked: true })
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer tok")
   })
 })
 

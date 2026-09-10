@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from all_posts import posts
 from handler.postHandler import Post_handler
 from database import get_db
-from app.models import User, Post, Comment
+from app.models import User, Post, Comment, Like
 from auth import (
     create_access_token,
     create_refresh_token,
@@ -50,6 +50,20 @@ def startup_db():
             pass
         try:
             conn.execute(text("ALTER TABLE comment ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            pk = "SERIAL PRIMARY KEY" if dbEngine.dialect.name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+            conn.execute(text(f"""
+                CREATE TABLE IF NOT EXISTS post_like (
+                    id {pk} NOT NULL,
+                    post_id VARCHAR NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    created_at VARCHAR,
+                    UNIQUE (post_id, user_id)
+                )
+            """))
             conn.commit()
         except Exception:
             pass
@@ -674,6 +688,49 @@ def delete_comment(
     db.commit()
     return {"message": "Comment deleted"}
 
+class LikeRequest(BaseModel):
+    liked: bool
+
+@app.post("/api/posts/{post_id}/like")
+def like_post(
+    post_id: str,
+    body: LikeRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    if db is None:
+        return JSONResponse(status_code=503, content={"error": "Service unavailable"})
+
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    post = postHandler.get_post_raw(post_id, db)
+    if not post:
+        return JSONResponse(status_code=404, content={"error": "Post not found"})
+
+    existing = (
+        db.query(Like)
+        .filter(Like.post_id == post_id, Like.user_id == user.id)
+        .first()
+    )
+
+    if body.liked and not existing:
+        db.add(
+            Like(
+                post_id=post_id,
+                user_id=user.id,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
+    elif not body.liked and existing:
+        db.delete(existing)
+        db.commit()
+
+    like_count = db.query(Like).filter(Like.post_id == post_id).count()
+    return {"liked": body.liked, "like_count": like_count}
+
 @app.put("/api/admin/posts/{id}")
 async def admin_update_post(id: str, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
     user = get_user_from_request(request, db)
@@ -720,16 +777,20 @@ def getPosts(request: Request, db: Session = Depends(get_db)):
         offset = int(request.query_params.get("offset", 0))
         limit = int(request.query_params.get("limit", 12))
         limit = min(limit, 50)
-        return postHandler.get_all_posts(db, offset=offset, limit=limit)
+        current_user = get_user_from_request(request, db)
+        return postHandler.get_all_posts(db, offset=offset, limit=limit, user=current_user)
     except Exception:
         return posts
 
 @app.get('/api/posts/{id}')
-def getPostById(id, db: Session = Depends(get_db)):
+def getPostById(id, request: Request, db: Session = Depends(get_db)):
     try:
-        post = postHandler.get_post_by_id(id, db)
+        current_user = get_user_from_request(request, db)
+        post = postHandler.get_post_by_id(id, db, user=current_user)
     except Exception:
         post = next((x for x in posts if x["id"] == id), None)
+        if post is not None:
+            post = {**post, "likeCount": 0, "liked": False}
     if post is None:
         return JSONResponse(
             status_code=404,

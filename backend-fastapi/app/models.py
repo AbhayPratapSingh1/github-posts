@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, JSON, Boolean
+from sqlalchemy import Column, Integer, String, JSON, Boolean, UniqueConstraint
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -50,5 +50,18 @@ class Comment(Base):
     created_at = Column(String)
     updated_at = Column(String)
     is_deleted = Column(Boolean, default=False)
+
+
+class Like(Base):
+    __tablename__ = 'post_like'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    post_id = Column(String, nullable=False)
+    user_id = Column(Integer, nullable=False)
+    created_at = Column(String)
+
+    __table_args__ = (
+        UniqueConstraint('post_id', 'user_id', name='uq_post_like'),
+    )
 
 

@@ -31,6 +31,13 @@ export const deleteComment = (postId, commentId) =>
     headers: authHeaders(),
   })
 
+export const likePost = (id, liked) =>
+  request(`/posts/${id}/like`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ liked }),
+  })
+
 export const createPost = (data) =>
   request("/posts", {
     method: "POST",

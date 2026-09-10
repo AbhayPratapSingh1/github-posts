@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
+import LikeButton from "../components/LikeButton"
 
 const PAGE_SIZE = 12
 
@@ -37,6 +38,14 @@ function Home() {
       addToast("Failed to load posts", "error")
     }
   }, [addToast])
+
+  const handleLikeChange = (postId, state) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, liked: state.liked, likeCount: state.likeCount } : p
+      )
+    )
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -167,6 +176,12 @@ function Home() {
                   </span>
                 )}
                 {post.github && <FaGithub className="text-base" />}
+                <LikeButton
+                  postId={post.id}
+                  liked={post.liked}
+                  likeCount={post.likeCount}
+                  onStateChange={(state) => handleLikeChange(post.id, state)}
+                />
               </div>
             </Link>
           )
