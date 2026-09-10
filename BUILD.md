@@ -93,6 +93,7 @@ A chronological log of how this project is being built. Each entry describes the
 - GitHub Actions CI/CD (`.github/workflows/ci-cd.yml`); backend deploys to Railway (`railway.json`) then **Render** (`render.yaml` + `Procfile`, free tier); client on Vercel (`client/vercel.json`).
 - CORS origins + secure cookies for prod; OAuth `redirect_uri` uses `BACKEND_URL`; client uses `VITE_BACKEND_URL` in prod vs Vite `/api` proxy in dev.
 - "Backend is waking up" loading state on the Home page while the free-tier server cold-starts.
+- CI fix: broken `bassk Render/deploy` action replaced with the real `johnbeynon/render-deploy-action@v0.0.8`; Vercel token moved to the `VERCEL_TOKEN` env var (CLI picks it up without a `--token` flag) with `VERCEL_ORG_ID`/`VERCEL_PROJECT_ID` supplied via secrets from repo Settings → Secrets and variables → Actions.
 
 ## 17. GitHub API integration (tokens, rate limits, ownership)
 - GitHub calls now use **each user's own token** (5000 req/hr per user, not one shared token), with a 1-hour in-memory cache; user token passed to repo/readme fetches.
