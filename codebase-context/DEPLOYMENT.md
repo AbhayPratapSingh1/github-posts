@@ -1,0 +1,373 @@
+# Deployment
+
+This document reverse-engineers the deployment process for the Post Panel application.
+
+## Overview
+
+Post Panel uses two cloud platforms:
+- **Backend:** Render (FastAPI + PostgreSQL)
+- **Frontend:** Vercel (React SPA)
+
+Deployment is automated via GitHub Actions CI/CD pipeline.
+
+## Current Deployment Stack
+
+| Component | Platform | Technology | Configuration |
+|-----------|----------|------------|---------------|
+| Backend API | Render | FastAPI (Python) | `backend-fastapi/render.yaml` |
+| Database | Render | PostgreSQL | Render managed database |
+| Frontend | Vercel | React SPA | Vercel dashboard/CLI |
+| CI/CD | GitHub Actions | Pipeline | `.github/workflows/ci-cd.yml` |
+
+## Deployment Architecture
+
+```
+Git Push to main
+  ↓
+GitHub Actions
+  ↓
+Lint & Test (all branches)
+  ↓
+main branch push only:
+  ├── Deploy Backend → Render → PostgreSQL
+  └── Deploy Frontend → Vercel
+```
+
+## Build Process
+
+### Backend Build
+
+**Configuration:** `backend-fastapi/render.yaml`
+```yaml
+buildCommand: pip install -r requirements.txt
+```
+
+**Steps:**
+1. Install dependencies from requirements.txt
+2. No compilation/transpilation needed (Python)
+3. Output is ready-to-run source code
+
+### Frontend Build
+
+**Configuration:** Vite + Vercel CLI
+
+**Steps:**
+```bash
+# In CI/CD pipeline
+npm install -g vercel
+vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+vercel build --prod --token=$VERCEL_TOKEN
+vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+```
+
+Build environment variable:
+```yaml
+env:
+  VITE_BACKEND_URL: ${{ secrets.BACKEND_URL }}
+```
+
+**Output:** `client/dist/` (static assets)
+
+## Startup Process
+
+### Backend Startup
+
+**Command** (from `render.yaml`/`Procfile`):
+```
+alembic upgrade head && python3 scripts/seed.py && uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+**Steps:**
+1. `alembic upgrade head` - Run database migrations
+2. `python3 scripts/seed.py` - Seed database with demo data (idempotent)
+3. `uvicorn main:app` - Start ASGI server
+
+### Frontend Startup
+
+**No startup process** - static files served by Vercel CDN
+
+## CI/CD Pipeline
+
+**File:** `.github/workflows/ci-cd.yml`
+
+### Triggers
+- Push to `main`
+- Pull request to `main`
+
+### Jobs
+
+1. **Lint & Test** (runs on all pushes/PRs)
+   - Checkout code
+   - Setup Node.js 22
+   - Install client dependencies (`npm ci`)
+   - Run oxlint (`npm run lint`)
+   - Run Vitest (`npm test`)
+
+2. **Deploy Backend** (main push only, after lint-and-test)
+   - Checkout code
+   - Deploy to Render using official action
+   - Parameters: `RENDER_SERVICE_ID`, `RENDER_API_KEY` (GitHub secrets)
+
+3. **Deploy Frontend** (main push only, after lint-and-test)
+   - Checkout code
+   - Setup Node.js 22
+   - Install Vercel CLI
+   - Pull Vercel environment
+   - Build frontend with `VITE_BACKEND_URL`
+   - Deploy to Vercel
+
+### Required GitHub Secrets
+| Secret | Purpose |
+|--------|---------|
+| `RENDER_SERVICE_ID` | Render service identifier |
+| `RENDER_API_KEY` | Render API authentication |
+| `VERCEL_TOKEN` | Vercel API authentication |
+| `BACKEND_URL` | Backend URL for frontend build |
+
+## Backend Deployment Configurations
+
+### Render (Primary)
+
+**File:** `backend-fastapi/render.yaml`
+
+```yaml
+services:
+  - type: web
+    name: post-panel-api
+    runtime: python
+    rootDir: backend-fastapi
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && python3 scripts/seed.py && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: post-panel-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: GEMINI_API_KEY_POST_PANEL
+        sync: false
+      - key: GITHUB_CLIENT_ID_POST_PANEL
+        sync: false
+      - key: GITHUB_CLIENT_SECRET_POST_PANEL
+        sync: false
+    healthCheckPath: /docs
+    autoDeploy: true
+```
+
+**Database:**
+```yaml
+databases:
+  - name: post-panel-db
+    plan: free
+    databaseName: post_panel
+    user: abhaypratapsingh
+```
+
+### Railway (Alternative)
+
+**File:** `backend-fastapi/railway.json`
+
+```json
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "pip install -r requirements.txt"
+  },
+  "deploy": {
+    "startCommand": "alembic upgrade head && python3 scripts/seed.py && uvicorn main:app --host 0.0.0.0 --port $PORT",
+    "healthcheckPath": "/",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
+```
+
+### Heroku (Alternative)
+
+**File:** `backend-fastapi/Procfile`
+
+```
+web: alembic upgrade head && python3 scripts/seed.py && uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+## Environment Configuration
+
+### Backend Environment (Production)
+
+Required environment variables:
+- `APP_ENV=prod`
+- `DATABASE_URL` (from managed database)
+- `JWT_SECRET` (generated by Render)
+- `CORS_ORIGINS` (frontend URLs)
+- `GEMINI_API_KEY_POST_PANEL` (AI feature)
+- `GITHUB_CLIENT_ID_POST_PANEL` (GitHub login)
+- `GITHUB_CLIENT_SECRET_POST_PANEL` (GitHub login)
+- `ADMIN_PASSWORD` (admin access)
+- `BACKEND_URL` (API URL)
+- `FRONTEND_URL` (frontend URL)
+
+### Frontend Environment (Production)
+
+Required environment variables:
+- `VITE_BACKEND_URL` (backend API base URL)
+
+## Database Deployment
+
+### Migrations on Startup
+
+Migrations run during application startup:
+```
+alembic upgrade head
+```
+
+This ensures the database schema is up-to-date before the application serves requests.
+
+### Seeding on Startup
+
+```
+python3 scripts/seed.py
+```
+
+The seed script is idempotent (safe to run repeatedly). It creates:
+- 3 demo users (if not exists)
+- 52 demo posts (if not exists)
+- Sample comments
+
+**Note:** Running seed on every `main` deployment means demo data is always present in production.
+
+## Deployment Sequence
+
+```
+Developer pushes to main
+  ↓
+GitHub Actions triggered
+  ↓
+Lint & Test job:
+  ├── npm ci
+  ├── npm run lint
+  └── npm test
+  ↓
+If main push (not PR):
+  ↓
+Deploy Backend job (parallel):
+  ├── Render service
+  │   ├── Install dependencies
+  │   ├── Run migrations
+  │   ├── Run seed script
+  │   └── Start uvicorn
+  │
+Deploy Frontend job (parallel):
+  ├── Vercel
+  │   ├── Pull environment
+  │   ├── Build static files
+  │   └── Deploy to CDN
+  ↓
+Both deployments complete
+```
+
+## Required Services
+
+| Service | Requirement | Cost |
+|---------|-------------|------|
+| Render (backend) | Free plan (with sleep) | $0 |
+| Render (database) | Free plan | $0 |
+| Vercel (frontend) | Hobby plan | $0 |
+| GitHub (repo) | Free plan | $0 |
+| GitHub OAuth App | Free | $0 |
+| Google Gemini API | Free tier | $0 |
+
+## Production Dependencies
+
+### Backend
+- FastAPI
+- Uvicorn
+- SQLAlchemy
+- Alembic
+- psycopg2-binary
+- httpx
+- PyJWT
+- markdown
+- python-dotenv
+
+### Frontend
+- React
+- React Router
+- Tailwind CSS
+- react-markdown
+- react-quill-new
+- remark-gfm
+
+## Cold Start Considerations
+
+**Observed:** The application has a "Server is waking up" message after 3 seconds (Render free tier cold start).
+
+**Implementation:** `client/src/pages/Home.jsx`
+- Show loading state for first 3 seconds
+- Then show "Server is waking up" if still loading
+- Posts load when server responds
+
+## Monitoring and Observability
+
+**Current state:** Minimal monitoring
+- Render provides built-in service logs
+- No custom logging implementation
+- No error tracking (Sentry, etc.)
+- No performance monitoring
+- No uptime monitoring
+
+## Deployment Considerations
+
+### Scaling
+- **Backend:** Single instance on free tier
+- **Database:** Free tier (limited connections)
+- **Frontend:** Auto-scaling CDN
+
+### Migrations
+- Run as part of startup
+- Sequential (heading only, no rollback)
+- **Risk:** Migration failure blocks app startup
+
+### Rollbacks
+- Render: Deploy previous service image
+- Vercel: Redeploy previous build
+- Database: No rollback support for migrations
+
+## Local Deployment (Development)
+
+```bash
+# 1. Start database
+docker-compose up -d
+
+# 2. Backend
+cd backend-fastapi
+pip install -r requirements.txt
+alembic upgrade head
+python scripts/seed.py
+uvicorn main:app --reload --port 7180
+
+# 3. Frontend (separate terminal)
+cd client
+npm install
+npm run dev  # Port 5180
+```
+
+## Deployment Recommendations
+
+### Immediate Improvements
+1. Pin backend dependencies versions
+2. Add backend tests to CI/CD pipeline
+3. Add environment variable validation on startup
+4. Add monitoring (Render metrics, logging)
+5. Set up staging environment
+
+### Long-term Improvements
+1. Use Docker for consistent deployments
+2. Add Blue/Green deployment strategy
+3. Implement backup/restore for database
+4. Add rollback strategy for migrations
+5. Set up uptime monitoring and alerts

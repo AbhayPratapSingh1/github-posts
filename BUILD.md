@@ -2,6 +2,8 @@
 
 A chronological log of how this project is being built. Each entry describes the why and the what of a build step.
 
+> **Keep this file in sync with every change.** Any feature, fix, test, or tooling change to this repo gets a new entry here (or an amendment to an existing one) before it is committed.
+
 ---
 
 ## 1. Setup repository
@@ -80,17 +82,62 @@ A chronological log of how this project is being built. Each entry describes the
 - `app/models.py`: `declarative_base` now imported from `sqlalchemy.orm` (kills the 2.0 deprecation warning).
 - Verified end-to-end: browser → Vite `/api` proxy → FastAPI (8000) → Postgres (5434). Note: the client auto-increments its port when 5173–5175 are busy (this machine was serving other projects) — the client ended up on **http://localhost:5176**.
 
+## 15. GitHub OAuth login + JWT session auth
+- `/api/auth/github` (redirect to GitHub, `user:email` scope) + `/api/auth/github/callback` exchange the code for tokens and upsert a `User` row; GitHub redirects straight to the backend (no Vercel callback proxy in the end).
+- `/api/auth/me`, `/api/auth/logout`; JWT **access + refresh** tokens with client-side auto-refresh on 401.
+- Long OAuth debugging run settled: cross-origin cookies (`SameSite=None` in prod) → OAuth tokens via URL params → window globals → finally `localStorage` tokens + `Authorization: Bearer` on every request.
+- Client auth in `AuthContext` (user, token refresh, sign-in/out); `ToastProvider` moved above `AuthProvider` so `useToast()` works during auth flows.
+- Credentials login removed — GitHub-only (`Login.jsx`). Profile modal shows avatar, bio, email, joined date, name; display name beats username, username shown as `@handle`.
+
+## 16. Deployment + CI/CD
+- GitHub Actions CI/CD (`.github/workflows/ci-cd.yml`); backend deploys to Railway (`railway.json`) then **Render** (`render.yaml` + `Procfile`, free tier); client on Vercel (`client/vercel.json`).
+- CORS origins + secure cookies for prod; OAuth `redirect_uri` uses `BACKEND_URL`; client uses `VITE_BACKEND_URL` in prod vs Vite `/api` proxy in dev.
+- "Backend is waking up" loading state on the Home page while the free-tier server cold-starts.
+
+## 17. GitHub API integration (tokens, rate limits, ownership)
+- GitHub calls now use **each user's own token** (5000 req/hr per user, not one shared token), with a 1-hour in-memory cache; user token passed to repo/readme fetches.
+- `github_token` column auto-added idempotently in `startup_db` (`IF NOT EXISTS`) — no manual migration needed on Render's existing DB.
+- Repo **ownership validation** on post create/update (backend), `GET /api/github/info`, and AI generation: `POST /api/github/generate` uses `GEMINI_API_KEY` to draft post content from a repo's README/description.
+
+## 18. Home feed, pagination, images
+- Paginated posts API (`offset`/`limit`), **infinite scroll** on the Home page; seed grew to 50+ posts across 3 users.
+- Gallery-mode images with a **lightbox viewer** (`ImageLightbox.jsx`) on click; SEO meta tags, SVG logo, favicon; `ReactQuill` lazy-loaded to avoid React 19 concurrent-render `startTime` error.
+- Post cards show username + post date, clickable GitHub profile links, and display names (`nickname`) instead of handles where available.
+
+## 19. Test suites + load testing
+- Backend pytest suite: auth (`me`, OAuth-less auth flows), posts CRUD, GitHub integration, utils — 67 tests initially, now **91** (comments, likes).
+- Frontend vitest suite: API layer, components, contexts — 51 tests initially, now **52**.
+- Load testing: `backend-fastapi/loadtests/` — Locust (`locustfile.py`) + quick CLI script (`quick_load.py`) with results recorded.
+
+## 20. Admin panel
+- `AdminLogin.jsx`: sign-in with GitHub ID + password (backed by `ADMIN_GITHUB_IDS`/`ADMIN_PASSWORD`); `AdminDashboard.jsx` with stats + posts/users tables.
+- Post deletion (single), **bulk delete all posts/users** with type-to-confirm dialog; admin post edit preserves the original owner; `created_at`/`updated_at` timestamps added.
+- Focus-trap in `Modal.jsx`; admin routes/endpoints audited (`/api/admin/*` guarded).
+
+## 21. Comments system
+- `Comments.jsx` per post: list, add, **edit** own comment, **delete** own comment.
+- Admin can **soft-delete** any comment (hidden content + "deleted by admin" state); delete response drives the placeholder state instead of client-side heuristics.
+- Comment authors link to user profiles; navigation + display-name improvements.
+
+## 22. Post likes (optimistic UI)
+- `post_like` table with a unique `(post_id, user_id)` constraint — one like per user per post; idempotent alembic-created + `CREATE TABLE IF NOT EXISTS` startup safety net (dialect-aware PK).
+- `POST /api/posts/{id}/like` takes an **explicit `{"liked": true|false}`** (no ambiguous server toggle) and returns `{liked, like_count}`; like counts + `liked` flag included in all post payloads.
+- `LikeButton.jsx`: optimistic like/unlike on the feed and post page, server-confirmed on success, revert + error toast on failure; layout-stable styling (constant border/padding/weight) so toggling never shifts the page.
+
 ---
 
 ## Current stack
 
 | Layer       | Tech                                              |
 |-------------|---------------------------------------------------|
-| Frontend    | React 19, Vite 8, Tailwind CSS v4, react-markdown |
-| Backend     | FastAPI, uvicorn                                  |
+| Frontend    | React 19, Vite 8, Tailwind CSS v4, react-markdown, react-quill, react-router-dom |
+| Backend     | FastAPI, uvicorn, SQLAlchemy, Alembic             |
+| Auth        | GitHub OAuth, JWT (access + refresh)              |
+| AI          | Gemini (`POST /api/github/generate`)              |
 | DB          | PostgreSQL 16 (Docker), SQLAlchemy, Alembic       |
 | API testing | Bruno collection (`bruno/post-panel-api/`)        |
-| Tooling     | oxlint, node --test, dev.sh                       |
+| Deploy      | Render (API), Vercel (client), GitHub Actions CI/CD |
+| Tooling     | oxlint, vitest, pytest, Locust, dev.sh            |
 
 ## Common commands
 
@@ -109,8 +156,16 @@ alembic upgrade head
 # Seed the DB (from backend-fastapi/)
 python3 scripts/seed.py
 
+# Backend tests (from backend-fastapi/)
+python3 -m pytest tests/ -q
+
+# Load tests (from backend-fastapi/loadtests/)
+python3 quick_load.py
+locust -f locustfile.py
+
 # Client (from client/)
 npm run dev
 npm run lint
+npm run build
 npm test
 ```

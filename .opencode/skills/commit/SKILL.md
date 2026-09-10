@@ -60,7 +60,11 @@ cd backend-fastapi && python -m pytest --cov=. --cov-report=term-missing
 - Code coverage must be **100%** for files changed in this commit
 - If tests fail or coverage is below 100%, report the gaps and ask the user to fix before committing
 
-### 5. Write the commit message
+### 5. Keep BUILD.md in sync
+
+Before committing, make sure `BUILD.md` at the repo root reflects the current change: every feature, fix, test, or tooling change gets a new numbered entry (or an amendment to an existing one), and the "Current stack" / "Common commands" sections are updated if the stack or commands changed. Stale entries relative to this commit's diff are a blocker for the commit.
+
+### 6. Write the commit message
 
 Run `git log --oneline -5` to understand recent commit message style, then write a concise message that:
 - Uses the imperative mood ("Add feature" not "Added feature")
@@ -68,11 +72,11 @@ Run `git log --oneline -5` to understand recent commit message style, then write
 - Describes the *what* and *why*, not the *how*
 - Groups related changes logically
 
-### 6. Stage and commit
+### 7. Stage and commit
 
 Stage the intended files with `git add` and commit with `git commit -m "message"`.
 
-### 7. Confirm
+### 8. Confirm
 
 Return the commit hash and summary to the user.
 
@@ -84,3 +88,4 @@ Return the commit hash and summary to the user.
 - If the diff is large, split into multiple logical commits.
 - Match the existing commit message style of the repository.
 - If the user declines to fix code quality issues, note them in the commit message as known debt.
+- Never commit a code change without an accompanying `BUILD.md` update (see step 5).
