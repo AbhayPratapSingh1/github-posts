@@ -18,6 +18,19 @@ export const getPostById = (id) => request(`/posts/${id}`)
 
 export const getPostCommentById = (id) => request(`/posts/${id}/comments`)
 
+export const updateComment = (postId, commentId, content) =>
+  request(`/posts/${postId}/comments/${commentId}`, {
+    method: "PUT",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ content }),
+  })
+
+export const deleteComment = (postId, commentId) =>
+  request(`/posts/${postId}/comments/${commentId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  })
+
 export const createPost = (data) =>
   request("/posts", {
     method: "POST",

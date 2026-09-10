@@ -1,25 +1,56 @@
-import { useState, useEffect } from "react"
-import { FaComment, FaTrash, FaReply } from "react-icons/fa"
+import { useState } from "react"
+import { FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa"
 import { API_BASE } from "../api/client"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
-import { getPostCommentById } from "../api/posts"
+import { getPostCommentById, updateComment, deleteComment } from "../api/posts"
 import { Link, useLocation } from "react-router-dom"
 
 function Comment({
-  content,
-  username,
-  name,
-  github_id,
-  avatar_url,
-  created_at,
+  comment,
+  currentUser,
+  isAdmin,
+  onDelete,
+  onUpdate,
 }) {
+  const {
+    content,
+    username,
+    name,
+    github_id,
+    avatar_url,
+    created_at,
+    user_id,
+    is_deleted,
+    updated_at,
+  } = comment
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(content || "")
   const displayName = name || username || "User"
   const githubUsername = username || github_id
 
   const githubUrl = githubUsername
     ? `https://github.com/${githubUsername}`
     : null
+
+  const canManage =
+    currentUser &&
+    (isAdmin || currentUser.id === user_id) &&
+    !is_deleted
+
+  const edited = !is_deleted && updated_at && updated_at !== created_at
+
+  const saveEdit = async () => {
+    const trimmed = draft.trim()
+    if (!trimmed) return
+    await onUpdate(comment.id, trimmed)
+    setEditing(false)
+  }
+
+  const cancelEdit = () => {
+    setDraft(content || "")
+    setEditing(false)
+  }
 
   const getRelativeTime = (dateString) => {
     const date = new Date(dateString)
@@ -91,9 +122,43 @@ function Comment({
 
         <div className="min-w-0 flex-1">
           {/* Comment */}
-          <p className="text-sm leading-relaxed text-fg-800 dark:text-fg-200">
-            {content}
-          </p>
+          {is_deleted ? (
+            <p className="text-sm leading-relaxed italic text-fg-500 dark:text-fg-400">
+              This comment was deleted by an admin.
+            </p>
+          ) : editing ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                maxLength={200}
+                autoFocus
+                className="min-w-0 flex-1 rounded-lg border border-bg-300 bg-bg-50 px-3 py-1.5 text-sm outline-none focus:border-primary-500 dark:border-bg-700 dark:bg-bg-800"
+              />
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={!draft.trim()}
+                className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              >
+                <FaSave />
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-xs font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
+              >
+                <FaTimes />
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm leading-relaxed text-fg-800 dark:text-fg-200">
+              {content}
+            </p>
+          )}
 
           {/* Author + Time */}
           <div className="mt-2 flex items-center gap-1.5 text-xs">
@@ -129,8 +194,38 @@ function Comment({
             >
               {getRelativeTime(created_at)}
             </span>
+
+            {edited && (
+              <span className="text-fg-500 dark:text-fg-400">
+                · edited
+              </span>
+            )}
           </div>
         </div>
+
+        {/* Actions */}
+        {canManage && (
+          <div className="flex shrink-0 items-center gap-1">
+            {currentUser.id === user_id && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                aria-label="Edit comment"
+                className="rounded-md p-2 text-fg-500 transition-colors hover:bg-bg-200 hover:text-primary-600 dark:text-fg-400 dark:hover:bg-bg-800 dark:hover:text-primary-400"
+              >
+                <FaEdit className="size-3.5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onDelete(comment.id)}
+              aria-label="Delete comment"
+              className="rounded-md p-2 text-fg-500 transition-colors hover:bg-bg-200 hover:text-red-600 dark:text-fg-400 dark:hover:bg-bg-800 dark:hover:text-red-400"
+            >
+              <FaTrash className="size-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -149,6 +244,8 @@ function CommentsSection({
   const { user } = useAuth()
   const { addToast } = useToast()
   const location = useLocation();
+
+  const isAdmin = Boolean(user?.is_admin) || Boolean(localStorage.getItem("admin_token"))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -194,6 +291,40 @@ function CommentsSection({
       setPostHasMoreComments(false)
     } catch {
       addToast("Failed to load comments", "error")
+    }
+  }
+
+  const handleDelete = async (commentId) => {
+    if (!window.confirm("Are you sure you want to delete this comment?")) return
+
+    try {
+      const res = await deleteComment(postId, commentId)
+
+      if (res?.comment) {
+        setComments((prev) =>
+          prev.map((c) => (c.id === commentId ? res.comment : c))
+        )
+      } else {
+        setComments((prev) => prev.filter((c) => c.id !== commentId))
+      }
+
+      addToast("Comment deleted", "success")
+    } catch (err) {
+      addToast(err.message || "Failed to delete comment", "error")
+    }
+  }
+
+  const handleUpdate = async (commentId, newContent) => {
+    if (!newContent.trim()) return
+
+    try {
+      const updated = await updateComment(postId, commentId, newContent)
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? updated : c))
+      )
+      addToast("Comment updated", "success")
+    } catch (err) {
+      addToast(err.message || "Failed to update comment", "error")
     }
   }
 
@@ -274,12 +405,11 @@ function CommentsSection({
           {comments.map((comment) => (
             <Comment
               key={comment.id}
-              content={comment.content}
-              username={comment.username}
-              name={comment.name}
-              github_id={comment.github_id}
-              avatar_url={comment.avatar_url}
-              created_at={comment.created_at}
+              comment={comment}
+              currentUser={user}
+              isAdmin={isAdmin}
+              onDelete={handleDelete}
+              onUpdate={handleUpdate}
             />
           ))}
         </div>

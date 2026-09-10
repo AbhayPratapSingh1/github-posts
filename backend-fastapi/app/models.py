@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, JSON
+from sqlalchemy import Column, Integer, String, JSON, Boolean
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -49,5 +49,6 @@ class Comment(Base):
     content = Column(String, nullable=False)
     created_at = Column(String)
     updated_at = Column(String)
+    is_deleted = Column(Boolean, default=False)
 
 

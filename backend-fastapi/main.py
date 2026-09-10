@@ -48,6 +48,11 @@ def startup_db():
             conn.commit()
         except Exception:
             pass
+        try:
+            conn.execute(text("ALTER TABLE comment ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE"))
+            conn.commit()
+        except Exception:
+            pass
 
 
 postHandler = Post_handler()
@@ -179,6 +184,9 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         user_data["bio"] = user.bio
     if hasattr(user, "created_at"):
         user_data["created_at"] = user.created_at
+    user_data["is_admin"] = (
+        user.github_id in ADMIN_GITHUB_IDS if hasattr(user, "github_id") else False
+    )
     return {"user": user_data}
 
 @app.post("/api/auth/logout")
@@ -525,7 +533,9 @@ async def create_comment(
         "name": getattr(user, "name", "") or "",
         "avatar_url": user.avatar_url,
         "content": comment.content,
+        "is_deleted": bool(comment.is_deleted),
         "created_at": comment.created_at,
+        "updated_at": comment.updated_at,
     }
 
 
@@ -555,11 +565,114 @@ def get_comments(post_id: str, db: Session = Depends(get_db)):
             "username": username,
             "name": name or "",
             "avatar_url": avatar_url,
-            "content": c.content,
+            "content": "" if c.is_deleted else c.content,
+            "is_deleted": bool(c.is_deleted),
             "created_at": c.created_at,
+            "updated_at": c.updated_at,
         }
         for c, user_id, github_id, username, name, avatar_url in comments
     ]
+
+
+def _comment_to_dict(comment: Comment, db: Session) -> dict:
+    author = db.query(User).filter(User.id == comment.user_id).first()
+    return {
+        "id": comment.id,
+        "post_id": comment.post_id,
+        "user_id": comment.user_id,
+        "github_id": author.github_id if author else None,
+        "username": author.username if author else None,
+        "name": (author.name if author else "") or "",
+        "avatar_url": author.avatar_url if author else None,
+        "content": "" if comment.is_deleted else comment.content,
+        "is_deleted": bool(comment.is_deleted),
+        "created_at": comment.created_at,
+        "updated_at": comment.updated_at,
+    }
+
+
+@app.put("/api/posts/{post_id}/comments/{comment_id}")
+async def update_comment(
+    post_id: str,
+    comment_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    body = await request.json()
+    content = body.get("content", "").strip()
+
+    if not content:
+        return JSONResponse(status_code=400, content={"error": "Content required"})
+
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id, Comment.post_id == post_id)
+        .first()
+    )
+    if not comment:
+        return JSONResponse(status_code=404, content={"error": "Comment not found"})
+    if comment.is_deleted:
+        return JSONResponse(status_code=400, content={"error": "Comment was deleted"})
+    if comment.user_id != user.id:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "You can only edit your own comments"},
+        )
+
+    comment.content = content
+    comment.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(comment)
+
+    return _comment_to_dict(comment, db)
+
+
+@app.delete("/api/posts/{post_id}/comments/{comment_id}")
+def delete_comment(
+    post_id: str,
+    comment_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id, Comment.post_id == post_id)
+        .first()
+    )
+    if not comment:
+        return JSONResponse(status_code=404, content={"error": "Comment not found"})
+
+    is_admin = (
+        user.github_id in ADMIN_GITHUB_IDS if hasattr(user, "github_id") else False
+    )
+
+    if is_admin:
+        comment.is_deleted = True
+        comment.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(comment)
+        return {
+            "message": "Comment deleted",
+            "comment": _comment_to_dict(comment, db),
+        }
+
+    if comment.user_id != user.id:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "You can only delete your own comments"},
+        )
+
+    db.delete(comment)
+    db.commit()
+    return {"message": "Comment deleted"}
 
 @app.put("/api/admin/posts/{id}")
 async def admin_update_post(id: str, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
@@ -646,8 +759,10 @@ def getPostById(id, db: Session = Depends(get_db)):
             "username": username,
             "name": name or "",
             "avatar_url": avatar_url,
-            "content": c.content,
+            "content": "" if c.is_deleted else c.content,
+            "is_deleted": bool(c.is_deleted),
             "created_at": c.created_at,
+            "updated_at": c.updated_at,
         }
         for c, user_id, github_id, username, name, avatar_url in comments_raw
     ]
