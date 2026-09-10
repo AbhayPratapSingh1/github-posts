@@ -87,6 +87,23 @@ class Post_handler:
     def get_post_raw(self, id, db):
         return db.query(Post).filter(Post.id == id).first()
 
+    def get_all_users(self, db):
+        users = db.query(User).order_by(User.id.desc()).all()
+        result = []
+        for u in users:
+            post_count = db.query(Post).filter(Post.user_id == u.id).count()
+            result.append({
+                "id": u.id,
+                "github_id": u.github_id,
+                "username": u.username,
+                "name": u.name,
+                "avatar_url": u.avatar_url,
+                "bio": u.bio,
+                "created_at": u.created_at,
+                "postCount": post_count,
+            })
+        return {"users": result, "total": len(result)}
+
     def create_post(self, db, data):
         post = Post(**data)
         db.add(post)

@@ -771,6 +771,15 @@ async def admin_update_post(id: str, body: CreatePostRequest, request: Request, 
 
 # ── Post routes ──────────────────────────────────────────────────────
 
+@app.get('/api/users')
+def getUsers(request: Request, db: Session = Depends(get_db)):
+    if db is None:
+        return JSONResponse(status_code=503, content={"error": "Service unavailable"})
+    try:
+        return postHandler.get_all_users(db)
+    except Exception:
+        return {"users": [], "total": 0}
+
 @app.get('/api/posts')
 def getPosts(request: Request, db: Session = Depends(get_db)):
     try:

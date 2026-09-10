@@ -132,6 +132,10 @@ A chronological log of how this project is being built. Each entry describes the
 - A **Liked** button in the header (signed-in users) opens a dedicated `/liked` page showing liked posts, newest like first; unliking a card removes it from the list immediately. Protected by `ProtectedRoute`.
 - The Liked page has a "Back to all posts" button linking back to `/`.
 
+## 24. Users page
+- `GET /api/users` returns a public user listing (id, username, name, avatar, bio, join date, `postCount`), newest users first; sensitive fields (`email`, `github_token`) are excluded. 503 when DB is down.
+- A **Users** button in the header (plus the `/users` route) opens a grid of user cards — avatar, name, `@handle`, bio, post count, join date, GitHub profile link. Accessible without signing in; like the Liked page it has a "Back to all posts" button.
+
 ---
 
 ## Current stack
