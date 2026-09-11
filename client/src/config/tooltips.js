@@ -53,6 +53,11 @@ export const TOOLTIPS = Object.freeze({
   addHeading: "Add a heading block",
   addImage: "Add an image block",
   addVideo: "Add a video block",
+  addBulletList: "Add a bullet list item",
+  addOrderedList: "Add a numbered list item",
+  addBlockquote: "Add a blockquote",
+  addCodeBlock: "Add a code block",
+  addGallery: "Add an image gallery",
   copyMarkdown: "Copy edited content as markdown",
   copyHtml: "Copy edited content as HTML",
 })

@@ -12,6 +12,9 @@ import {
   FaGripVertical,
   FaImages,
   FaPlusCircle,
+  FaListUl,
+  FaListOl,
+  FaQuoteLeft,
 } from "react-icons/fa"
 import { useToast } from "../context/ToastContext"
 import Tooltip from "../components/Tooltip"
@@ -26,10 +29,10 @@ const blockTextClass =
 
 const blockStyle = (b) => {
   if (b.type === "heading") {
-    const sizes = { 1: "text-3xl font-extrabold", 2: "text-2xl font-bold", 3: "text-xl font-bold" }
-    return sizes[b.level] || sizes[2]
+    const sizes = { 1: "text-2xl font-bold", 2: "text-xl font-bold", 3: "text-lg font-semibold" }
+    return `w-full ${sizes[b.level] || sizes[2]}`
   }
-  if (b.type === "blockquote") return "text-base italic border-l-4 border-fg-300 dark:border-fg-600 pl-4"
+  if (b.type === "blockquote") return "w-full text-base italic border-l-4 border-fg-300 dark:border-fg-600 pl-4"
   if (b.type === "code") return "rounded-md bg-bg-100 p-3 font-mono text-sm dark:bg-bg-800 whitespace-pre-wrap"
   if (b.type === "list-item") return ""
   return "text-base leading-relaxed"
@@ -332,6 +335,14 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
       update({ images: images.filter((_, i) => i !== imgIndex) })
     }
 
+    const moveGalleryImage = (fromIndex, direction) => {
+      const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1
+      if (toIndex < 0 || toIndex >= images.length) return
+      const nextImages = [...images]
+      ;[nextImages[fromIndex], nextImages[toIndex]] = [nextImages[toIndex], nextImages[fromIndex]]
+      update({ images: nextImages })
+    }
+
     const openGalleryLightbox = (startIndex = 0) => {
       const srcs = images.filter((img) => img.src).map((img) => img.src)
       if (srcs.length) onOpenLightbox(srcs, startIndex)
@@ -429,13 +440,31 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
                       </div>
                     )}
                     {!isOverlaySlot && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); removeGalleryImage(imgIndex) }}
-                        className="absolute right-1 top-1 z-10 rounded-full bg-red-600 p-1 text-white hover:bg-red-700"
-                      >
-                        <FaTrash className="size-2" />
-                      </button>
+                      <div className="absolute right-1 top-1 z-10 flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          disabled={imgIndex === 0}
+                          onClick={(e) => { e.stopPropagation(); moveGalleryImage(imgIndex, "up") }}
+                          className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80 disabled:opacity-30"
+                        >
+                          <FaArrowUp className="size-2" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={imgIndex === images.length - 1}
+                          onClick={(e) => { e.stopPropagation(); moveGalleryImage(imgIndex, "down") }}
+                          className="rounded-full bg-black/60 p-1 text-white hover:bg-black/80 disabled:opacity-30"
+                        >
+                          <FaArrowDown className="size-2" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeGalleryImage(imgIndex) }}
+                          className="rounded-full bg-red-600 p-1 text-white hover:bg-red-700"
+                        >
+                          <FaTrash className="size-2" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <input
@@ -556,8 +585,8 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
         <FaGripVertical className="size-3 cursor-grab text-fg-400 opacity-0 group-hover:opacity-100" />
         <BlockControls index={index} count={count} onMove={onMove} onRemove={onRemove} />
       </div>
-      <div className="flex-1">
-        {marker && <span className="mr-2 select-none text-fg-400">{marker}</span>}
+      <div className="flex flex-1 items-center">
+        {marker && <span className="mr-2 shrink-0 select-none text-fg-400">{marker}</span>}
         <AutoGrow
           value={block.text}
           onChange={(text) => update({ text })}
@@ -696,6 +725,21 @@ export default function BlockEditor({ value, onChange, placeholder }) {
         <Tooltip tip="addCodeBlock">
           <button type="button" onClick={() => addBlock("code", { text: "" })} className={addButtonClass()}>
             <FaCode className="size-2.5" /> Code
+          </button>
+        </Tooltip>
+        <Tooltip tip="addBulletList">
+          <button type="button" onClick={() => addBlock("list-item", { text: "", ordered: false })} className={addButtonClass()}>
+            <FaListUl className="size-2.5" /> Bullet
+          </button>
+        </Tooltip>
+        <Tooltip tip="addOrderedList">
+          <button type="button" onClick={() => addBlock("list-item", { text: "", ordered: true })} className={addButtonClass()}>
+            <FaListOl className="size-2.5" /> Numbered
+          </button>
+        </Tooltip>
+        <Tooltip tip="addBlockquote">
+          <button type="button" onClick={() => addBlock("blockquote", { text: "" })} className={addButtonClass()}>
+            <FaQuoteLeft className="size-2.5" /> Quote
           </button>
         </Tooltip>
         <Tooltip tip="addImage">
