@@ -5,7 +5,7 @@ import json
 import markdown as md
 from datetime import datetime, timezone
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 import httpx
 from fastapi import Depends, FastAPI, Query, Request
@@ -328,7 +328,11 @@ async def github_callback(code: str = Query(...), state: str = Query("/"), db: S
     if hasattr(user, "created_at"):
         user_data["created_at"] = user.created_at
 
-    response = RedirectResponse(url=f"{FRONTEND_URL}{return_to}")
+    # Pass tokens via URL too: cross-site cookies are unreliable when frontend/backend are on different domains (e.g. Vercel/Render)
+    user_json = quote(json.dumps(user_data))
+    sep = "&" if "?" in return_to else "?"
+    redirect_url = f"{FRONTEND_URL}{return_to}{sep}token={access}&refresh={refresh_token}&user={user_json}"
+    response = RedirectResponse(url=redirect_url)
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     return response
