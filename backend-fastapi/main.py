@@ -406,7 +406,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
-    all_posts = db.query(Post).order_by(Post.dateOfCreation.desc().nullslast()).all()
+    all_posts = db.query(Post).order_by(Post.created_at.desc().nullslast()).all()
     all_users = db.query(User).all()
 
     post_list = []
@@ -787,6 +787,20 @@ def getPosts(request: Request, db: Session = Depends(get_db)):
         return postHandler.get_all_posts(db, offset=offset, limit=limit, user=current_user)
     except Exception:
         return posts
+
+@app.get('/api/posts/search')
+def searchPosts(request: Request, q: str = "", db: Session = Depends(get_db)):
+    try:
+        if not q or not q.strip():
+            return {"posts": [], "total": 0, "offset": 0, "limit": 12}
+        query = q.strip()
+        offset = int(request.query_params.get("offset", 0))
+        limit = int(request.query_params.get("limit", 12))
+        limit = min(limit, 50)
+        current_user = get_user_from_request(request, db)
+        return postHandler.search_posts(db, query, user=current_user, offset=offset, limit=limit)
+    except Exception:
+        return {"posts": [], "total": 0, "offset": 0, "limit": 12}
 
 @app.get('/api/posts/liked')
 def getLikedPosts(request: Request, db: Session = Depends(get_db)):

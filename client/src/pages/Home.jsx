@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { FaPlus, FaHeart, FaUsers, FaSpinner, FaPencilAlt } from "react-icons/fa"
-import { getPosts } from "../api/posts"
+import { FaPlus, FaHeart, FaUsers, FaSpinner, FaPencilAlt, FaSearch, FaTimes } from "react-icons/fa"
+import { getPosts, searchPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
@@ -19,8 +19,12 @@ function Home() {
   const [isWakingUp, setIsWakingUp] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isSearching, setIsSearching] = useState(false)
   const offsetRef = useRef(0)
   const sentinelRef = useRef(null)
+  const debounceRef = useRef(null)
+  const searchOffsetRef = useRef(0)
 
   const loadPosts = useCallback(async (offset, append = false) => {
     try {
@@ -34,11 +38,52 @@ function Home() {
     }
   }, [addToast])
 
+  const loadSearchResults = useCallback(async (query, offset, append = false) => {
+    try {
+      const data = await searchPosts(query, offset, PAGE_SIZE)
+      const newPosts = data.posts || []
+      setPosts((prev) => append ? [...prev, ...newPosts] : newPosts)
+      setHasMore(offset + PAGE_SIZE < data.total)
+      searchOffsetRef.current = offset + PAGE_SIZE
+    } catch {
+      addToast("Search failed", "error")
+    }
+  }, [addToast])
+
   const handleLikeChange = (post, state) => {
     setPosts((prev) =>
       prev.map((p) => p.id === post.id ? { ...p, ...state } : p)
     )
   }
+
+  const handleSearch = useCallback((value) => {
+    setSearchQuery(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!value.trim()) {
+      setIsSearching(false)
+      setPosts([])
+      setHasMore(true)
+      loadPosts(0)
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true)
+      setLoadingMore(false)
+      searchOffsetRef.current = 0
+      try {
+        const data = await searchPosts(value.trim(), 0, PAGE_SIZE)
+        setPosts(data.posts || [])
+        setHasMore(PAGE_SIZE < data.total)
+        searchOffsetRef.current = PAGE_SIZE
+      } catch {
+        addToast("Search failed", "error")
+      }
+    }, 300)
+  }, [addToast, loadPosts])
+
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -58,14 +103,17 @@ function Home() {
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !isLoading) {
           setLoadingMore(true)
-          loadPosts(offsetRef.current, true).finally(() => setLoadingMore(false))
+          const work = isSearching
+            ? loadSearchResults(searchQuery, searchOffsetRef.current, true)
+            : loadPosts(offsetRef.current, true)
+          work.finally(() => setLoadingMore(false))
         }
       },
       { rootMargin: "200px" }
     )
     observer.observe(sentinelRef.current)
     return () => observer.disconnect()
-  }, [hasMore, loadingMore, isLoading, loadPosts])
+  }, [hasMore, loadingMore, isLoading, loadPosts, loadSearchResults, isSearching, searchQuery])
 
   return <div className="min-h-screen bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
     <header className="border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
@@ -140,6 +188,32 @@ function Home() {
         A collection of games and tools built for the web.
       </p>
 
+      <div className="relative mt-8">
+        <FaSearch className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Search posts..."
+          className="w-full rounded-lg border border-bg-300 bg-bg-100 py-2.5 pl-10 pr-10 text-sm text-fg-900 outline-none transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => handleSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-400 hover:text-fg-600"
+          >
+            <FaTimes className="size-4" />
+          </button>
+        )}
+      </div>
+
+      {isSearching && (
+        <p className="mt-3 text-sm text-fg-500 dark:text-fg-400">
+          {posts.length} result{posts.length !== 1 ? "s" : ""} for "{searchQuery}"
+        </p>
+      )}
+
       {isLoading && (
         <div className="mt-10 text-center">
           <p className="text-fg-500 dark:text-fg-400">Loading...</p>
@@ -158,14 +232,17 @@ function Home() {
       </div>
 
       <div ref={sentinelRef} className="py-4">
-        {loadingMore && (
+        {loadingMore && !isSearching && (
           <div className="flex items-center justify-center gap-2 text-fg-400">
             <FaSpinner className="animate-spin" />
             <span className="text-sm">Loading more...</span>
           </div>
         )}
-        {!hasMore && posts.length > 0 && (
+        {!hasMore && posts.length > 0 && !isSearching && (
           <p className="text-center text-sm text-fg-400">You've reached the end</p>
+        )}
+        {!isLoading && posts.length === 0 && isSearching && (
+          <p className="text-center text-sm text-fg-400">No posts found</p>
         )}
       </div>
     </main>

@@ -14,6 +14,9 @@ function authHeaders(extra = {}) {
 export const getPosts = (offset = 0, limit = 12) =>
   request(`/posts?offset=${offset}&limit=${limit}`)
 
+export const searchPosts = (q, offset = 0, limit = 12) =>
+  request(`/posts/search?q=${encodeURIComponent(q)}&offset=${offset}&limit=${limit}`)
+
 export const getPostById = (id) => request(`/posts/${id}`)
 
 export const getPostCommentById = (id) => request(`/posts/${id}/comments`)

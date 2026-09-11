@@ -159,6 +159,14 @@ A chronological log of how this project is being built. Each entry describes the
 - `BUGS.md` created to track known issues (gallery truncation round-trip bug).
 - 72 vitest tests passing.
 
+## 27. Post sorting fix + search with debounce
+- **Bug fix:** Posts now sort by `created_at` (actual post creation time) instead of `dateOfCreation` (GitHub repo creation date). Previously, a post for a 5-year-old repo would sort to the bottom.
+- Added `GET /api/posts/search?q=query` endpoint: searches title first, falls back to short description if fewer than 3 title matches.
+- Added `searchPosts()` API function in `client/src/api/posts.js`.
+- Home page search input with 300ms debounce: typing triggers search, clearing restores paginated feed. Shows result count while searching, "No posts found" for empty results.
+- Infinite scroll disabled during search mode.
+- Search now supports pagination: `GET /api/posts/search?q=query&offset=0&limit=12`. Infinite scroll works during search.
+
 ---
 
 ## Current stack

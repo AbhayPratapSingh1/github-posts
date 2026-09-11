@@ -50,9 +50,32 @@ class Post_handler:
 
     def get_all_posts(self, db, offset=0, limit=12, user=None):
         total = db.query(Post).count()
-        posts = db.query(Post).order_by(Post.dateOfCreation.desc().nullslast()).offset(offset).limit(limit).all()
+        posts = db.query(Post).order_by(Post.created_at.desc().nullslast()).offset(offset).limit(limit).all()
         result = []
         for post in posts:
+            author = self._resolve_user(db, post)
+            like_count, liked = self._like_info(db, post, user)
+            result.append(self._post_to_dict(post, author, like_count, liked))
+        return {"posts": result, "total": total, "offset": offset, "limit": limit}
+
+    def search_posts(self, db, query, user=None, offset=0, limit=12):
+        like = f"%{query}%"
+        title_q = db.query(Post).filter(Post.title.ilike(like)).order_by(Post.created_at.desc().nullslast())
+        title_total = title_q.count()
+        title_matches = title_q.offset(offset).limit(limit).all()
+        if title_total >= 3:
+            total = title_total
+            results = title_matches
+        else:
+            desc_q = db.query(Post).filter(Post.shortDescription.ilike(like)).order_by(Post.created_at.desc().nullslast())
+            desc_total = desc_q.count()
+            desc_matches = desc_q.all()
+            seen = {p.id for p in title_matches}
+            all_matches = title_matches + [p for p in desc_matches if p.id not in seen]
+            total = title_total + desc_total - len(seen)
+            results = all_matches[offset:offset + limit]
+        result = []
+        for post in results:
             author = self._resolve_user(db, post)
             like_count, liked = self._like_info(db, post, user)
             result.append(self._post_to_dict(post, author, like_count, liked))

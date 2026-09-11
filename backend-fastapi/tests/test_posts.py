@@ -1,5 +1,6 @@
 """Tests for Posts CRUD: GET /api/posts, GET /api/posts/{id}, POST /api/posts, PUT /api/posts/{id}, DELETE /api/posts/{id}."""
 
+from datetime import timezone
 from tests.conftest import create_test_user, create_test_post
 from auth import create_access_token
 
@@ -46,10 +47,11 @@ class TestGetPosts:
         assert len(data["posts"]) == 0
 
     def test_get_posts_ordered_by_creation_date(self, client, db):
+        from datetime import datetime, timedelta
         p1 = create_test_post(db, title="First")
-        p1.dateOfCreation = 1000
+        p1.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
         p2 = create_test_post(db, title="Second")
-        p2.dateOfCreation = 2000
+        p2.created_at = datetime(2024, 6, 1, tzinfo=timezone.utc)
         db.commit()
         resp = client.get("/api/posts")
         posts = resp.json()["posts"]
