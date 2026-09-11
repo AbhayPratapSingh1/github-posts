@@ -4,25 +4,38 @@ class Post_handler:
     def __init__(self):
         pass
 
+    def _post_list_columns(self):
+        return (
+            Post.id,
+            Post.user_id,
+            Post.title,
+            Post.shortDescription,
+            Post.githubOwner,
+            Post.created_at,
+            Post.hosted,
+            Post.github,
+            Post.type,
+        )
+
     def _post_to_dict(self, post, user=None, like_count=0, liked=False):
         return {
-            "id": post.id,
-            "user_id": post.user_id,
-            "title": post.title,
-            "type": post.type,
-            "shortDescription": post.shortDescription,
-            "hosted": post.hosted,
-            "availableAt": post.availableAt,
-            "description": post.description,
-            "github": post.github,
-            "dateOfCreation": post.dateOfCreation,
-            "language": post.language,
-            "lastPushAt": post.lastPushAt,
-            "defaultBranch": post.defaultBranch,
-            "stats": post.stats,
-            "githubOwner": post.githubOwner,
-            "created_at": post.created_at,
-            "updated_at": post.updated_at,
+            "id": getattr(post, "id", None),
+            "user_id": getattr(post, "user_id", None),
+            "title": getattr(post, "title", None),
+            "type": getattr(post, "type", None),
+            "shortDescription": getattr(post, "shortDescription", None),
+            "hosted": getattr(post, "hosted", None),
+            "availableAt": getattr(post, "availableAt", None),
+            "description": getattr(post, "description", None),
+            "github": getattr(post, "github", None),
+            "dateOfCreation": getattr(post, "dateOfCreation", None),
+            "language": getattr(post, "language", None),
+            "lastPushAt": getattr(post, "lastPushAt", None),
+            "defaultBranch": getattr(post, "defaultBranch", None),
+            "stats": getattr(post, "stats", None),
+            "githubOwner": getattr(post, "githubOwner", None),
+            "created_at": getattr(post, "created_at", None),
+            "updated_at": getattr(post, "updated_at", None),
             "authorName": user.name if user else None,
             "authorUsername": user.username if user else None,
             "likeCount": like_count,
@@ -30,10 +43,12 @@ class Post_handler:
         }
 
     def _resolve_user(self, db, post):
-        if post.user_id:
-            return db.query(User).filter(User.id == post.user_id).first()
-        if post.githubOwner:
-            return db.query(User).filter(User.username == post.githubOwner).first()
+        user_id = getattr(post, "user_id", None)
+        github_owner = getattr(post, "githubOwner", None)
+        if user_id:
+            return db.query(User).filter(User.id == user_id).first()
+        if github_owner:
+            return db.query(User).filter(User.username == github_owner).first()
         return None
 
     def _like_info(self, db, post, user):
@@ -50,7 +65,13 @@ class Post_handler:
 
     def get_all_posts(self, db, offset=0, limit=12, user=None):
         total = db.query(Post).count()
-        posts = db.query(Post).order_by(Post.created_at.desc().nullslast()).offset(offset).limit(limit).all()
+        posts = (
+            db.query(*self._post_list_columns())
+            .order_by(Post.created_at.desc().nullslast())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
         result = []
         for post in posts:
             author = self._resolve_user(db, post)
@@ -60,14 +81,18 @@ class Post_handler:
 
     def search_posts(self, db, query, user=None, offset=0, limit=12):
         like = f"%{query}%"
-        title_q = db.query(Post).filter(Post.title.ilike(like)).order_by(Post.created_at.desc().nullslast())
+        title_q = db.query(*self._post_list_columns()).filter(
+            Post.title.ilike(like)
+        ).order_by(Post.created_at.desc().nullslast())
         title_total = title_q.count()
         title_matches = title_q.offset(offset).limit(limit).all()
         if title_total >= 3:
             total = title_total
             results = title_matches
         else:
-            desc_q = db.query(Post).filter(Post.shortDescription.ilike(like)).order_by(Post.created_at.desc().nullslast())
+            desc_q = db.query(*self._post_list_columns()).filter(
+                Post.shortDescription.ilike(like)
+            ).order_by(Post.created_at.desc().nullslast())
             desc_total = desc_q.count()
             desc_matches = desc_q.all()
             seen = {p.id for p in title_matches}
@@ -91,7 +116,7 @@ class Post_handler:
 
     def get_liked_posts(self, db, user, limit=50):
         likes = (
-            db.query(Like)
+            db.query(Like.post_id)
             .filter(Like.user_id == user.id)
             .order_by(Like.created_at.desc(), Like.id.desc())
             .limit(limit)
@@ -99,7 +124,9 @@ class Post_handler:
         )
         result = []
         for like in likes:
-            post = db.query(Post).filter(Post.id == like.post_id).first()
+            post = db.query(*self._post_list_columns()).filter(
+                Post.id == like.post_id
+            ).first()
             if not post:
                 continue
             author = self._resolve_user(db, post)
