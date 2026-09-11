@@ -379,6 +379,7 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
     }
 
     const showOverlay = mode === "truncated" && images.length > cols
+    const displayImages = showOverlay ? images.slice(0, cols) : images
     const remaining = images.length - cols
 
     return (
@@ -444,7 +445,7 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
           </div>
 
           <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-            {images.map((img, imgIndex) => {
+            {displayImages.map((img, imgIndex) => {
               const isOverlaySlot = showOverlay && imgIndex === cols - 1
               return (
                 <div key={img.id} className="min-w-0 space-y-1">
@@ -538,9 +539,18 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
 
           {showOverlay && (
             <div className="space-y-1.5 rounded-md border border-bg-200 bg-bg-50 p-2 dark:border-bg-800 dark:bg-bg-900">
-              <p className="text-xs font-medium text-fg-500 dark:text-fg-400">All images ({images.length}):</p>
+              <p className="text-xs font-medium text-fg-500 dark:text-fg-400">All images ({images.length}) — drag to reorder:</p>
               {images.map((img, imgIndex) => (
-                <div key={img.id} className="flex items-center gap-2">
+                <div
+                  key={img.id}
+                  className={`flex items-center gap-2 rounded p-0.5 transition-colors ${galleryDragOver === imgIndex ? "bg-primary-50 ring-1 ring-primary-500 dark:bg-primary-950" : ""}`}
+                  draggable
+                  onDragStart={(e) => handleGalleryDragStart(e, imgIndex)}
+                  onDragOver={(e) => handleGalleryDragOver(e, imgIndex)}
+                  onDrop={(e) => handleGalleryDrop(e, imgIndex)}
+                  onDragEnd={handleGalleryDragEnd}
+                >
+                  <FaGripVertical className="size-3 shrink-0 cursor-grab text-fg-400" />
                   <span className="w-5 shrink-0 text-right text-xs text-fg-400">{imgIndex + 1}.</span>
                   {img.src ? (
                     <img src={img.src} alt={img.alt} className="size-8 shrink-0 rounded object-cover" />
