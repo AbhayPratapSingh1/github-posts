@@ -167,6 +167,7 @@ A chronological log of how this project is being built. Each entry describes the
 - Infinite scroll disabled during search mode.
 - Search now supports pagination: `GET /api/posts/search?q=query&offset=0&limit=12`. Infinite scroll works during search.
 - Gallery images support drag-and-drop reordering with visual ring feedback on drag-over. Grip icon shown on hover. Up/down buttons retained as alternative.
+- In +N mode, grid shows only `cols` images; "All images" table below supports drag-and-drop reordering.
 
 ---
 

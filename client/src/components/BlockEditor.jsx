@@ -122,6 +122,8 @@ function BlockControls({ index, count, onMove, onRemove }) {
 function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onDragStart, onDragOver, onDrop, dragOverIndex, onOpenLightbox }) {
   const update = (patch) => onChange(index, { ...block, ...patch })
   const isDragOver = dragOverIndex === index
+  const galleryDragRef = useRef({ from: null })
+  const [galleryDragOver, setGalleryDragOver] = useState(null)
 
   const handleDragStart = (e) => {
     e.dataTransfer.effectAllowed = "move"
@@ -314,8 +316,6 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
     const images = block.images || []
     const cols = block.columns || 2
     const mode = block.mode || "truncated"
-    const galleryDragRef = useRef({ from: null })
-    const [galleryDragOver, setGalleryDragOver] = useState(null)
 
     const updateGalleryImage = (imgIndex, patch) => {
       const nextImages = images.map((img, i) => (i === imgIndex ? { ...img, ...patch } : img))
