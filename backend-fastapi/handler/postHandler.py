@@ -1,4 +1,5 @@
 from app.models import Post, User, Like
+from sqlalchemy import func, case, literal
 
 class Post_handler:
     def __init__(self):
@@ -64,21 +65,75 @@ class Post_handler:
         return like_count, liked
 
     def get_all_posts(self, db, offset=0, limit=12, user=None):
-        total = db.query(Post).count()
-        posts = (
-            db.query(*self._post_list_columns())
-            .order_by(Post.created_at.desc().nullslast())
+        like_stats = (
+            db.query(
+                Like.post_id.label("post_id"),
+                func.count(Like.id).label("like_count"),
+                (
+                    func.max(
+                        case(
+                            (Like.user_id == user.id, 1),
+                            else_=0,
+                        )
+                    )
+                    if user
+                    else literal(0)
+                ).label("liked"),
+            )
+            .group_by(Like.post_id)
+            .subquery()
+        )
+
+        query = (
+            db.query(
+                *self._post_list_columns(),
+                User.name.label("author_name"),
+                User.username.label("author_username"),
+                func.coalesce(like_stats.c.like_count, 0).label("like_count"),
+                func.coalesce(like_stats.c.liked, 0).label("liked"),
+            )
+            .outerjoin(User, User.id == Post.user_id)
+            .outerjoin(
+                like_stats,
+                like_stats.c.post_id == Post.id,
+            )
+            .order_by(
+                Post.created_at.desc().nullslast()
+            )
             .offset(offset)
             .limit(limit)
-            .all()
         )
-        result = []
-        for post in posts:
-            author = self._resolve_user(db, post)
-            like_count, liked = self._like_info(db, post, user)
-            result.append(self._post_to_dict(post, author, like_count, liked))
-        return {"posts": result, "total": total, "offset": offset, "limit": limit}
 
+        rows = query.all()
+
+        result = []
+
+        for row in rows:
+            result.append({
+                "id": row.id,
+                "user_id": row.user_id,
+                "title": row.title,
+                "type": row.type,
+                "shortDescription": row.shortDescription,
+                "hosted": row.hosted,
+                "github": row.github,
+                "githubOwner": row.githubOwner,
+                "created_at": row.created_at,
+                "authorName": row.author_name,
+                "authorUsername": row.author_username,
+                "likeCount": row.like_count,
+                "liked": bool(row.liked)
+            })
+            
+        total = db.query(func.count(Post.id)).scalar()
+
+        return {
+            "posts": result,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+        }
+    
     def search_posts(self, db, query, user=None, offset=0, limit=12):
         like = f"%{query}%"
         title_q = db.query(*self._post_list_columns()).filter(
