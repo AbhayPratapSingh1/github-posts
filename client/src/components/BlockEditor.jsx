@@ -314,6 +314,8 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
     const images = block.images || []
     const cols = block.columns || 2
     const mode = block.mode || "truncated"
+    const galleryDragRef = useRef({ from: null })
+    const [galleryDragOver, setGalleryDragOver] = useState(null)
 
     const updateGalleryImage = (imgIndex, patch) => {
       const nextImages = images.map((img, i) => (i === imgIndex ? { ...img, ...patch } : img))
@@ -341,6 +343,34 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
       const nextImages = [...images]
       ;[nextImages[fromIndex], nextImages[toIndex]] = [nextImages[toIndex], nextImages[fromIndex]]
       update({ images: nextImages })
+    }
+
+    const handleGalleryDragStart = (e, index) => {
+      galleryDragRef.current.from = index
+      e.dataTransfer.effectAllowed = "move"
+      e.dataTransfer.setData("text/plain", "")
+    }
+
+    const handleGalleryDragOver = (e, index) => {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = "move"
+      setGalleryDragOver(index)
+    }
+
+    const handleGalleryDrop = (e, toIndex) => {
+      e.preventDefault()
+      setGalleryDragOver(null)
+      const fromIndex = galleryDragRef.current.from
+      if (fromIndex === null || fromIndex === toIndex) return
+      const nextImages = [...images]
+      ;[nextImages[fromIndex], nextImages[toIndex]] = [nextImages[toIndex], nextImages[fromIndex]]
+      update({ images: nextImages })
+      galleryDragRef.current.from = null
+    }
+
+    const handleGalleryDragEnd = () => {
+      setGalleryDragOver(null)
+      galleryDragRef.current.from = null
     }
 
     const openGalleryLightbox = (startIndex = 0) => {
@@ -420,7 +450,12 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
               return (
                 <div key={img.id} className="min-w-0 space-y-1">
                   <div
-                    className={`relative ${isOverlaySlot ? "cursor-pointer" : ""}`}
+                    className={`relative ${isOverlaySlot ? "cursor-pointer" : "cursor-grab"} ${galleryDragOver === imgIndex ? "ring-2 ring-primary-500 ring-offset-1" : ""}`}
+                    draggable={!isOverlaySlot}
+                    onDragStart={(e) => handleGalleryDragStart(e, imgIndex)}
+                    onDragOver={(e) => handleGalleryDragOver(e, imgIndex)}
+                    onDrop={(e) => handleGalleryDrop(e, imgIndex)}
+                    onDragEnd={handleGalleryDragEnd}
                     onClick={isOverlaySlot ? () => openGalleryLightbox(cols) : undefined}
                   >
                     {img.src ? (
@@ -437,6 +472,11 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
                     {isOverlaySlot && (
                       <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-black/40">
                         <span className="text-3xl font-extrabold text-white drop-shadow-md">+{remaining}</span>
+                      </div>
+                    )}
+                    {!isOverlaySlot && (
+                      <div className="absolute left-1 top-1 z-10">
+                        <FaGripVertical className="size-3 text-white opacity-0 group-hover:opacity-80 drop-shadow" />
                       </div>
                     )}
                     {!isOverlaySlot && (
