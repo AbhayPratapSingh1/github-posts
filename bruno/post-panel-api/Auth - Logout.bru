@@ -1,0 +1,16 @@
+meta {
+  name: Auth - Logout
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/auth/logout
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.message: eq "Logged out"
+}

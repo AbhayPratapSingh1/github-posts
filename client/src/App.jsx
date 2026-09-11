@@ -6,6 +6,7 @@ import CreatePost from "./pages/CreatePost"
 import Login from "./pages/Login"
 import Liked from "./pages/Liked"
 import Users from "./pages/Users"
+import CustomEditPage from "./pages/CustomEditPage"
 import AdminLogin from "./pages/AdminLogin"
 import AdminDashboard from "./pages/AdminDashboard"
 import ProtectedRoute from "./components/ProtectedRoute"
@@ -18,6 +19,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/liked" element={<ProtectedRoute><Liked /></ProtectedRoute>} />
         <Route path="/users" element={<Users />} />
+        <Route path="/custom-edit-page" element={<CustomEditPage />} />
+        <Route path="/custom-quill" element={<CustomEditPage />} />
         <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
         <Route path="/post/:id/edit" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
         <Route path="/post/:id" element={<Post />} />

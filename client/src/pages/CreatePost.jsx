@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { FaArrowLeft, FaSpinner, FaCheck } from "react-icons/fa"
 import { createPost, updatePost, adminUpdatePost, getGithubInfo, getPostById, generatePostContent } from "../api/posts"
@@ -6,8 +6,7 @@ import { useToast } from "../context/ToastContext"
 import { useAuth } from "../context/AuthContext"
 import Logo from "../components/Logo"
 import Tooltip from "../components/Tooltip"
-
-const ReactQuill = lazy(() => import("react-quill-new"))
+import BlockEditor from "../components/BlockEditor"
 
 const inputClass =
   "w-full rounded-lg border border-bg-300 bg-bg-50 px-4 py-2.5 text-sm text-fg-900 outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
@@ -35,7 +34,6 @@ function CreatePost() {
     availableAt: "web",
   })
   const [githubInfo, setGithubInfo] = useState(null)
-  const [githubLoading, setGithubLoading] = useState(false)
   const [githubStatus, setGithubStatus] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState(null)
@@ -181,15 +179,19 @@ function CreatePost() {
         </h1>
 
         {loadingPost && (
-          <p className="text-fg-500 dark:text-fg-400">Loading post...</p>
+          <div className="flex items-center justify-center py-20">
+            <FaSpinner className="animate-spin mr-3 size-5 text-primary-600" />
+            <span className="text-fg-500 dark:text-fg-400">Loading post...</span>
+          </div>
         )}
 
-        {error && (
+        {!loadingPost && error && (
           <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-400">
             {error}
           </div>
         )}
 
+        {!loadingPost && (
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className={labelClass}>Title *</label>
@@ -317,32 +319,12 @@ function CreatePost() {
 
           <div>
             <label className={labelClass}>Description *</label>
-            <div className="rounded-lg border border-bg-300 dark:border-bg-700 overflow-hidden">
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center h-40 bg-bg-50 dark:bg-bg-900 text-fg-400">
-                    <FaSpinner className="animate-spin mr-2" /> Loading editor...
-                  </div>
-                }
-              >
-                <ReactQuill
-                  theme="snow"
-                  value={form.description}
-                  onChange={(val) => setForm((f) => ({ ...f, description: val }))}
-                  placeholder="Write the full project description here..."
-                  modules={{
-                    toolbar: [
-                      [{ header: [1, 2, 3, false] }],
-                      ["bold", "italic", "underline", "strike"],
-                      [{ list: "ordered" }, { list: "bullet" }],
-                      ["blockquote", "code-block"],
-                      ["link", "image"],
-                      ["clean"],
-                    ],
-                  }}
-                  className="bg-bg-50 dark:bg-bg-900 text-fg-900 dark:text-fg-100"
-                />
-              </Suspense>
+            <div className="rounded-lg border border-bg-300 dark:border-bg-700 p-3">
+              <BlockEditor
+                value={form.description}
+                onChange={(val) => setForm((f) => ({ ...f, description: val }))}
+                placeholder="Write the full project description here..."
+              />
             </div>
           </div>
 
@@ -366,6 +348,7 @@ function CreatePost() {
             </Tooltip>
           </div>
         </form>
+        )}
       </main>
     </div>
   )

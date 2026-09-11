@@ -1,0 +1,16 @@
+meta {
+  name: Admin - Get Dashboard
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/admin/dashboard
+  body: none
+  auth: bearer
+}
+
+assert {
+  res.status: eq 200
+  res.body.stats: exists
+}

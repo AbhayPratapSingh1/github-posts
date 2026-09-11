@@ -52,6 +52,14 @@ function Post() {
     fetchComments()
   }, [id, isLoading])
 
+  useEffect(() => {
+    if (!isLoading && window.location.hash === "#comments") {
+      setTimeout(() => {
+        document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" })
+      }, 100)
+    }
+  }, [isLoading])
+
   const handleDelete = async () => {
     const confirm = window.confirm(`Are you sure you want to delete "${post?.title || id}"?`)
     if (!confirm) return
@@ -377,7 +385,7 @@ function Post() {
     </main>
 
 
-    <section className="border-t border-bg-200 bg-bg-50 py-8 dark:border-bg-800 dark:bg-bg-950">
+    <section id="comments" className="border-t border-bg-200 bg-bg-50 py-8 dark:border-bg-800 dark:bg-bg-950">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <div className="mb-5">
           <h2 className="text-lg font-semibold text-fg-900 dark:text-fg-100">

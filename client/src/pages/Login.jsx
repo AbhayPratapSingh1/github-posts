@@ -2,7 +2,7 @@ import { FaGithub } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import { useEffect } from "react"
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { API_BASE } from "../api/client"
 import Logo from "../components/Logo"
 import Tooltip from "../components/Tooltip"
@@ -12,7 +12,8 @@ function Login() {
   const { addToast } = useToast()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const location = useLocation();
+
+  const returnTo = (searchParams.get("returnTo") || "/") + (window.location.hash || "")
 
   useEffect(() => {
     checkAuth()
@@ -20,16 +21,9 @@ function Login() {
 
   useEffect(() => {
     if (!loading && user) {
-      const from = location.state?.from
-      console.log({from, location})
-      navigate(
-        from
-          ? `${from.pathname}${from.search || ""}${from.hash || ""}`
-          : "/",
-        { replace: true }
-      )
+      navigate(returnTo, { replace: true })
     }
-}, [user, loading, navigate, location])
+  }, [user, loading, navigate, returnTo])
 
   useEffect(() => {
     const error = searchParams.get("error")
@@ -40,7 +34,7 @@ function Login() {
   }, [searchParams, addToast, navigate])
 
   const handleGithubLogin = () => {
-    window.location.href = `${API_BASE}/auth/github`
+    window.location.href = `${API_BASE}/auth/github?returnTo=${encodeURIComponent(returnTo)}`
   }
 
   return (

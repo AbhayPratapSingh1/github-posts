@@ -1,0 +1,15 @@
+meta {
+  name: Auth - GitHub OAuth
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/auth/github
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 307
+}

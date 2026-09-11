@@ -12,10 +12,6 @@ function setToken(token) {
   localStorage.setItem("session_token", token)
 }
 
-function clearToken() {
-  localStorage.removeItem("session_token")
-}
-
 function clearAuth() {
   localStorage.removeItem("session_token")
   localStorage.removeItem("refresh_token")

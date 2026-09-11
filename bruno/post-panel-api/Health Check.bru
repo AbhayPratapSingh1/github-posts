@@ -1,0 +1,16 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 23
+}
+
+get {
+  url: {{baseUrl}}/
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: eq "End point is working fine"
+}

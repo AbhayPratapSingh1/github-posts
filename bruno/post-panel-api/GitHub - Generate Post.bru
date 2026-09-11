@@ -1,0 +1,17 @@
+meta {
+  name: GitHub - Generate Post
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{baseUrl}}/api/github/generate?url=https://github.com/facebook/react
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.title: exists
+  res.body.shortDescription: exists
+}

@@ -1,0 +1,16 @@
+meta {
+  name: Admin - Delete All Posts
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/api/admin/posts
+  body: none
+  auth: bearer
+}
+
+assert {
+  res.status: eq 200
+  res.body.message: contains "Deleted"
+}

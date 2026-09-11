@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { FaPlus, FaHeart, FaUsers, FaSpinner } from "react-icons/fa"
+import { FaPlus, FaHeart, FaUsers, FaSpinner, FaPencilAlt } from "react-icons/fa"
 import { getPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
@@ -102,6 +102,15 @@ function Home() {
                 >
                   <FaPlus className="text-xs" />
                   New Post
+                </Link>
+              </Tooltip>
+              <Tooltip tip="editorLab">
+                <Link
+                  to="/custom-edit-page"
+                  className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
+                >
+                  <FaPencilAlt className="text-xs" />
+                  Editor
                 </Link>
               </Tooltip>
               <ProfileMenu />

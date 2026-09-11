@@ -1,0 +1,17 @@
+meta {
+  name: Posts - Get All
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/posts?offset=0&limit=12
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.posts: exists
+  res.body.total: exists
+}

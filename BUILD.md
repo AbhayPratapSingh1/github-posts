@@ -143,13 +143,29 @@ A chronological log of how this project is being built. Each entry describes the
 - Create Post submit button simplified: dropped the large `px-5 py-2.5` + `shadow-lg shadow-primary-600/25` glow for a plain `bg-primary-600 px-4 py-2` filled button that matches the Cancel button's simple outline style language.
 - Verified: `npm run lint` (no new warnings), `npm run build`, 60 vitest tests green (9 test files, incl. a new `Tooltip.test.jsx`).
 
+## 26. Custom block editor — replace Quill.js
+- Replaced `react-quill-new` (Quill.js) with a custom block-based editor (`BlockEditor.jsx`).
+- New `BlockEditor` component: controlled (`value`/`onChange` HTML), supports paragraph, heading, code, image, video, gallery, hr blocks.
+- Block features: drag-and-drop reordering, file upload (image/video), resize controls (width/maxHeight with auto option), gallery with truncated (+N overlay) and full grid modes.
+- Gallery +N overlay: shows `cols` images on post page with "+N" on last cell; all images preserved in `data-images` JSON attribute for re-editing.
+- New `editorBlocks.js` config: `parseHtmlToBlocks` (HTML → blocks), `blocksToHtml` (blocks → HTML), `blocksToMarkdown` (blocks → Markdown).
+- `CreatePost.jsx` now uses `BlockEditor` instead of `ReactQuill` (removed lazy/Suspense, removed quill CSS import).
+- `CustomEditPage.jsx` simplified to use `BlockEditor` (~850 → ~230 lines).
+- Added border/shadow to images and videos in editor and post page (`.prose img`, `.prose video`, gallery images).
+- Added loader spinner in `CreatePost.jsx` when editing (form hidden until post loads).
+- Image/video parser fix: `parseHtmlToBlocks` detects `<img>`/`<video>` inside `<p>` tags.
+- Removed deprecated `backend/` directory (Hono server).
+- Updated Bruno API collection with 23 endpoint files; removed old files; updated environment port to 7180.
+- `BUGS.md` created to track known issues (gallery truncation round-trip bug).
+- 72 vitest tests passing.
+
 ---
 
 ## Current stack
 
 | Layer       | Tech                                              |
 |-------------|---------------------------------------------------|
-| Frontend    | React 19, Vite 8, Tailwind CSS v4, react-markdown, react-quill, react-router-dom |
+| Frontend    | React 19, Vite 8, Tailwind CSS v4, react-markdown, react-router-dom |
 | Backend     | FastAPI, uvicorn, SQLAlchemy, Alembic             |
 | Auth        | GitHub OAuth, JWT (access + refresh)              |
 | AI          | Gemini (`POST /api/github/generate`)              |

@@ -1,0 +1,31 @@
+meta {
+  name: Posts - Create
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/api/posts
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "title": "Test Post",
+    "type": "playable",
+    "shortDescription": "A test post",
+    "description": "<p>This is a test post description</p>",
+    "hosted": null,
+    "availableAt": ["web"],
+    "github": "https://github.com/user/repo",
+    "language": "JavaScript",
+    "lastPushAt": "2024-01-01T00:00:00Z",
+    "defaultBranch": "main"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: exists
+}

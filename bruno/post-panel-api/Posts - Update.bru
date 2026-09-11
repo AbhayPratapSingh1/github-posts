@@ -1,0 +1,22 @@
+meta {
+  name: Posts - Update
+  type: http
+  seq: 17
+}
+
+put {
+  url: {{baseUrl}}/api/posts/test-post-id
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "title": "Updated Test Post",
+    "shortDescription": "Updated description"
+  }
+}
+
+assert {
+  res.status: eq 200
+}

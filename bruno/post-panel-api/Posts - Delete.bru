@@ -1,0 +1,16 @@
+meta {
+  name: Posts - Delete
+  type: http
+  seq: 18
+}
+
+delete {
+  url: {{baseUrl}}/api/posts/test-post-id
+  body: none
+  auth: bearer
+}
+
+assert {
+  res.status: eq 200
+  res.body.message: eq "Post deleted successfully"
+}

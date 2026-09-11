@@ -1,0 +1,15 @@
+meta {
+  name: Comments - Get By Post
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/api/posts/alien-attack/comments
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}

@@ -226,7 +226,7 @@ def refresh(request: Request, db: Session = Depends(get_db)):
     return response
 
 @app.get("/api/auth/github")
-def github_login():
+def github_login(returnTo: str = "/"):
     if not GITHUB_CLIENT_ID:
         return JSONResponse(status_code=500, content={"error": "GitHub OAuth not configured"})
     redirect_uri = f"{BACKEND_URL}/api/auth/github/callback"
@@ -235,13 +235,16 @@ def github_login():
         f"?client_id={GITHUB_CLIENT_ID}"
         f"&redirect_uri={redirect_uri}"
         f"&scope=user:email"
+        f"&state={returnTo}"
     )
     return RedirectResponse(url=github_url)
 
 @app.get("/api/auth/github/callback")
-async def github_callback(code: str = Query(...), db: Session = Depends(get_db)):
+async def github_callback(code: str = Query(...), state: str = Query("/"), db: Session = Depends(get_db)):
     if not code:
         return RedirectResponse(url=f"{FRONTEND_URL}/login?error=no_code")
+    
+    return_to = state if state.startswith("/") else "/"
 
     async with httpx.AsyncClient() as client:
         token_res = await client.post(
@@ -313,9 +316,6 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
 
-    from urllib.parse import urlencode, quote
-    import json as _json
-
     user_data = {"id": user.id, "username": user.username or f"user_{user.id}", "avatar_url": getattr(user, "avatar_url", "")}
     if hasattr(user, "name"):
         user_data["name"] = getattr(user, "name", "") or ""
@@ -328,10 +328,7 @@ async def github_callback(code: str = Query(...), db: Session = Depends(get_db))
     if hasattr(user, "created_at"):
         user_data["created_at"] = user.created_at
 
-    params = urlencode({"token": access, "refresh": refresh_token, "user": quote(_json.dumps(user_data))})
-    redirect_url = f"{FRONTEND_URL}?{params}"
-
-    response = RedirectResponse(url=redirect_url)
+    response = RedirectResponse(url=f"{FRONTEND_URL}{return_to}")
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     return response

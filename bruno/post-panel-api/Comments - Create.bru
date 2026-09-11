@@ -1,0 +1,23 @@
+meta {
+  name: Comments - Create
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{baseUrl}}/api/posts/alien-attack/comments
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "content": "This is a test comment"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: exists
+  res.body.content: eq "This is a test comment"
+}

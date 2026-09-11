@@ -381,8 +381,7 @@ function CommentsSection({
 
           <Tooltip tip="signIn">
           <Link
-            to="/login"
-            state={{ from: location }}
+            to={`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}#comments`}
             className="shrink-0 rounded-lg bg-bg-900 px-4 py-2 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
           >
             Sign in

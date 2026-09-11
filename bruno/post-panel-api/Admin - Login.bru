@@ -1,0 +1,23 @@
+meta {
+  name: Admin - Login
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/admin/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "github_id": 12345678,
+    "password": "admin_password"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.success: eq true
+}

@@ -5,5 +5,60 @@
   "ignore": [
     "node_modules",
     ".git"
+  ],
+  "sections": [
+    {
+      "name": "Authentication",
+      "requests": [
+        "Auth - Login",
+        "Auth - Get Current User",
+        "Auth - Logout",
+        "Auth - Refresh Token",
+        "Auth - GitHub OAuth"
+      ]
+    },
+    {
+      "name": "Admin",
+      "requests": [
+        "Admin - Check Admin Status",
+        "Admin - Login",
+        "Admin - Get Dashboard",
+        "Admin - Delete Post",
+        "Admin - Delete All Posts",
+        "Admin - Update Post",
+        "Admin - Delete All Users"
+      ]
+    },
+    {
+      "name": "Posts",
+      "requests": [
+        "Posts - Get All",
+        "Posts - Get By ID",
+        "Posts - Get Missing",
+        "Posts - Create",
+        "Posts - Update",
+        "Posts - Delete"
+      ]
+    },
+    {
+      "name": "Comments",
+      "requests": [
+        "Comments - Get By Post",
+        "Comments - Create"
+      ]
+    },
+    {
+      "name": "GitHub",
+      "requests": [
+        "GitHub - Get Repo Info",
+        "GitHub - Generate Post"
+      ]
+    },
+    {
+      "name": "Health",
+      "requests": [
+        "Health Check"
+      ]
+    }
   ]
 }

@@ -1,0 +1,17 @@
+meta {
+  name: GitHub - Get Repo Info
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/api/github/info?url=https://github.com/facebook/react
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.language: exists
+  res.body.stats: exists
+}

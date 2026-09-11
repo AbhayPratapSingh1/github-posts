@@ -1,0 +1,16 @@
+meta {
+  name: Admin - Check Admin Status
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/admin/check
+  body: none
+  auth: bearer
+}
+
+assert {
+  res.status: eq 200
+  res.body.success: eq true
+}
