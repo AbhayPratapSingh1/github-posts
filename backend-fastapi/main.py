@@ -820,52 +820,19 @@ def getLikedPosts(request: Request, db: Session = Depends(get_db)):
 
 @app.get('/api/posts/{id}')
 def getPostById(id, request: Request, db: Session = Depends(get_db)):
-    try:
-        current_user = get_user_from_request(request, db)
-        post = postHandler.get_post_by_id(id, db, user=current_user)
-    except Exception:
-        post = next((x for x in posts if x["id"] == id), None)
-        if post is not None:
-            post = {**post, "likeCount": 0, "liked": False}
+    current_user = get_user_from_request(request, db)
+
+    post = postHandler.get_post_by_id(
+        id,
+        db,
+        user=current_user,
+    )
+
     if post is None:
         return JSONResponse(
             status_code=404,
-            content={"error": "Post ID doesn't exist"}
+            content={"error": "Post ID doesn't exist"},
         )
-    comments_raw = (
-        db.query(
-            Comment,
-            User.id,
-            User.github_id,
-            User.username,
-            User.name,
-            User.avatar_url,
-        )
-        .join(User, Comment.user_id == User.id)
-        .filter(Comment.post_id == id)
-        .order_by(Comment.created_at.desc())
-        .limit(6)
-        .all()
-    )
-
-    comments = [
-        {
-            "id": c.id,
-            "user_id": user_id,
-            "github_id": github_id,
-            "username": username,
-            "name": name or "",
-            "avatar_url": avatar_url,
-            "content": "" if c.is_deleted else c.content,
-            "is_deleted": bool(c.is_deleted),
-            "created_at": c.created_at,
-            "updated_at": c.updated_at,
-        }
-        for c, user_id, github_id, username, name, avatar_url in comments_raw
-    ]
-
-    post["comments"] = comments[:5]
-    post["has_more_comments"] = len(comments) > 5
 
     return post
 

@@ -1,5 +1,5 @@
-from app.models import Post, User, Like
-from sqlalchemy import func, case, literal
+from app.models import Post, User, Like, Comment
+from sqlalchemy import exists, func, case, literal
 
 class Post_handler:
     def __init__(self):
@@ -162,12 +162,90 @@ class Post_handler:
         return {"posts": result, "total": total, "offset": offset, "limit": limit}
 
     def get_post_by_id(self, id, db, user=None):
-        post = db.query(Post).filter(Post.id == id).first()
-        if not post:
+
+        if user:
+            liked_expr = exists().where(
+                (Like.post_id == Post.id) &
+                (Like.user_id == user.id)
+            )
+        else:
+            liked_expr = literal(False)
+        result = (
+            db.query(
+                Post,
+                User,
+                func.count(Like.id).label("like_count"),
+                liked_expr.label("liked"),
+            )
+            .join(User, User.id == Post.user_id)
+            .outerjoin(Like, Like.post_id == Post.id)
+            .filter(Post.id == id)
+            .group_by(Post.id, User.id)
+            .first()
+        )
+
+        if not result:
             return None
-        author = self._resolve_user(db, post)
-        like_count, liked = self._like_info(db, post, user)
-        return self._post_to_dict(post, author, like_count, liked)
+
+        post, author, like_count, liked = result
+
+        result = self._post_to_dict(
+            post,
+            author,
+            int(like_count or 0),
+            bool(liked),
+        )
+        comments_raw = (
+            db.query(
+                Comment.id,
+                Comment.user_id,
+                Comment.content,
+                Comment.is_deleted,
+                Comment.created_at,
+                Comment.updated_at,
+                User.github_id,
+                User.username,
+                User.name,
+                User.avatar_url,
+            )
+            .join(User, User.id == Comment.user_id)
+            .filter(Comment.post_id == id)
+            .order_by(Comment.created_at.desc())
+            .limit(6)
+            .all()
+        )
+
+        comments = [
+            {
+                "id": comment_id,
+                "user_id": comment_user_id,
+                "github_id": github_id,
+                "username": username,
+                "name": name or "",
+                "avatar_url": avatar_url,
+                "content": "" if is_deleted else content,
+                "is_deleted": bool(is_deleted),
+                "created_at": created_at,
+                "updated_at": updated_at,
+            }
+            for (
+                comment_id,
+                comment_user_id,
+                content,
+                is_deleted,
+                created_at,
+                updated_at,
+                github_id,
+                username,
+                name,
+                avatar_url,
+            ) in comments_raw
+        ]
+
+        result["comments"] = comments[:5]
+        result["has_more_comments"] = len(comments) == 6
+
+        return result
 
     def get_liked_posts(self, db, user, limit=50):
         likes = (
