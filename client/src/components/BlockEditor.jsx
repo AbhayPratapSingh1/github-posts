@@ -379,7 +379,6 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
     }
 
     const showOverlay = mode === "truncated" && images.length > cols
-    const displayImages = showOverlay ? images.slice(0, cols) : images
     const remaining = images.length - cols
 
     return (
@@ -445,7 +444,7 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
           </div>
 
           <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-            {displayImages.map((img, imgIndex) => {
+            {images.map((img, imgIndex) => {
               const isOverlaySlot = showOverlay && imgIndex === cols - 1
               return (
                 <div key={img.id} className="min-w-0 space-y-1">
