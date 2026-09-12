@@ -4,7 +4,7 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { FaGithub, FaPlay, FaGlobe, FaTrash, FaEdit } from "react-icons/fa"
 import { READ_WORD_PER_MINUTE } from "../config/text"
-import { POST_TYPE, findPostById } from "../config/posts"
+import { POST_TYPE } from "../config/posts"
 import { getPostById, deletePost } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
@@ -28,28 +28,27 @@ function Post() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { addToast } = useToast()
-  const [post, setPost] = useState(() => findPostById(id))
+  const [post, setPost] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [comments, setComments] = useState([])
   const [lightbox, setLightbox] = useState({ open: false, startIndex: 0, images: [] })
   const articleRef = useRef(null)
 
   useEffect(() => {
     setIsLoading(true)
+    setError(null)
     getPostById(id)
-      .then((data) => {setPost(data); setComments(data.comments)})
-      .catch(() => {
-        setPost(findPostById(id))
-        setComments(data.comments)
+      .then((data) => {
+        setPost(data)
+        setComments(data.comments || [])
+      })
+      .catch((err) => {
+        setError(err.message || "Failed to load post")
         addToast("Failed to load post", "error")
       })
       .finally(() => setIsLoading(false))
   }, [id])
-
-  useEffect(() => {
-    if (!id || isLoading) return
-    fetchComments()
-  }, [id, isLoading])
 
   useEffect(() => {
     if (!isLoading && window.location.hash === "#comments") {
@@ -68,22 +67,6 @@ function Post() {
     } catch (err) {
       const msg = err.message || "Failed to delete post"
       addToast(msg, "error")
-    }
-  }
-
-  const fetchComments = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/posts/${id}/comments`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("session_token") || localStorage.getItem("admin_token")}`,
-        },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setComments(data)
-      }
-    } catch {
-      // Silently fail - comments are optional
     }
   }
 
@@ -106,9 +89,31 @@ function Post() {
     setPost((prev) => (prev ? { ...prev, ...state } : prev))
   }
 
-  if (isLoading || !post) {
+  if (isLoading) {
     return <div className="min-h-screen grid place-items-center bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
       <p className="text-fg-500 dark:text-fg-400">Loading...</p>
+    </div>
+  }
+
+  if (error || !post) {
+    return <div className="min-h-screen grid place-items-center bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
+      <div className="text-center">
+        <p className="text-lg font-semibold text-fg-700 dark:text-fg-300">{error || "Post not found"}</p>
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <button
+            onClick={() => navigate("/")}
+            className="rounded-lg bg-bg-900 px-5 py-2.5 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
+          >
+            Go Home
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-lg border border-bg-300 px-5 py-2.5 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
     </div>
   }
 
