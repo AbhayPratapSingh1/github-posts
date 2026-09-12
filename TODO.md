@@ -1397,7 +1397,7 @@ The goal is measurable improvement, not simply reducing the number of lines of P
 }
 
 
-- [] {
+- [x] {
     add skill
 
     API Performance Regression Skill
