@@ -12,7 +12,7 @@ PRIORITY - [x] update the create post page and make user to add repo url first, 
 
 
 
-- [] {
+- [x] {
     Post API Performance Optimization Task
 Objective
 
