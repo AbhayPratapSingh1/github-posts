@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { FaPlus, FaHeart, FaUsers, FaSearch, FaTimes, FaSortAmountDown, FaSortAmountUp, FaFire } from "react-icons/fa"
+import { FaPlus, FaHeart, FaUsers, FaSpinner, FaSearch, FaTimes } from "react-icons/fa"
 import { getPosts, searchPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
@@ -8,46 +8,111 @@ import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
 import PostCard from "../components/PostCard"
 
+const PAGE_SIZE = 12
+
 function Home() {
   const { user } = useAuth()
   const { addToast } = useToast()
-  const [allPosts, setAllPosts] = useState([])
+  const [posts, setPosts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isWakingUp, setIsWakingUp] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [sort, setSort] = useState("newest")
+  const [isSearching, setIsSearching] = useState(false)
+  const offsetRef = useRef(0)
+  const sentinelRef = useRef(null)
+  const debounceRef = useRef(null)
+  const searchOffsetRef = useRef(0)
 
-  useEffect(() => {
-    getPosts(0, 500)
-      .then((data) => setAllPosts(data.posts || []))
-      .catch(() => addToast("Failed to load posts", "error"))
-      .finally(() => setIsLoading(false))
+  const loadPosts = useCallback(async (offset, append = false) => {
+    try {
+      const data = await getPosts(offset, PAGE_SIZE)
+      const newPosts = data.posts || []
+      setPosts((prev) => append ? [...prev, ...newPosts] : newPosts)
+      setHasMore(offset + PAGE_SIZE < data.total)
+      offsetRef.current = offset + PAGE_SIZE
+    } catch {
+      addToast("Failed to load posts", "error")
+    }
   }, [addToast])
 
-  const filteredPosts = useMemo(() => {
-    let result = allPosts
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(
-        (p) =>
-          p.title?.toLowerCase().includes(q) ||
-          p.shortDescription?.toLowerCase().includes(q)
-      )
+  const loadSearchResults = useCallback(async (query, offset, append = false) => {
+    try {
+      const data = await searchPosts(query, offset, PAGE_SIZE)
+      const newPosts = data.posts || []
+      setPosts((prev) => append ? [...prev, ...newPosts] : newPosts)
+      setHasMore(offset + PAGE_SIZE < data.total)
+      searchOffsetRef.current = offset + PAGE_SIZE
+    } catch {
+      addToast("Search failed", "error")
     }
-    if (sort === "oldest") {
-      result = [...result].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-    } else if (sort === "most_liked") {
-      result = [...result].sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
-    } else {
-      result = [...result].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    }
-    return result
-  }, [allPosts, searchQuery, sort])
+  }, [addToast])
 
-  const handleLikeChange = useCallback((post, state) => {
-    setAllPosts((prev) =>
+  const handleLikeChange = (post, state) => {
+    setPosts((prev) =>
       prev.map((p) => p.id === post.id ? { ...p, ...state } : p)
     )
+  }
+
+  const handleSearch = useCallback((value) => {
+    setSearchQuery(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!value.trim()) {
+      setIsSearching(false)
+      setPosts([])
+      setHasMore(true)
+      loadPosts(0)
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true)
+      setLoadingMore(false)
+      searchOffsetRef.current = 0
+      try {
+        const data = await searchPosts(value.trim(), 0, PAGE_SIZE)
+        setPosts(data.posts || [])
+        setHasMore(PAGE_SIZE < data.total)
+        searchOffsetRef.current = PAGE_SIZE
+      } catch {
+        addToast("Search failed", "error")
+      }
+    }, 300)
+  }, [addToast, loadPosts])
+
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) setIsWakingUp(true)
+    }, 3000)
+
+    loadPosts(0).finally(() => {
+      setIsLoading(false)
+      setIsWakingUp(false)
+      clearTimeout(timer)
+    })
+  }, [loadPosts])
+
+  useEffect(() => {
+    if (!sentinelRef.current) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !isLoading) {
+          setLoadingMore(true)
+          const work = isSearching
+            ? loadSearchResults(searchQuery, searchOffsetRef.current, true)
+            : loadPosts(offsetRef.current, true)
+          work.finally(() => setLoadingMore(false))
+        }
+      },
+      { rootMargin: "200px" }
+    )
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, isLoading, loadPosts, loadSearchResults, isSearching, searchQuery])
 
   return <div className="min-h-screen bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
     <header className="border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
@@ -110,14 +175,14 @@ function Home() {
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search posts..."
           className="w-full rounded-lg border border-bg-300 bg-bg-100 py-2.5 pl-10 pr-10 text-sm text-fg-900 outline-none transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
         />
         {searchQuery && (
           <button
             type="button"
-            onClick={() => setSearchQuery("")}
+            onClick={() => handleSearch("")}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-400 hover:text-fg-600"
           >
             <FaTimes className="size-4" />
@@ -125,68 +190,43 @@ function Home() {
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setSort("newest")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-            sort === "newest"
-              ? "bg-primary-600 text-white"
-              : "border border-bg-300 text-fg-600 hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600"
-          }`}
-        >
-          <FaSortAmountDown className="size-3" />
-          Newest
-        </button>
-        <button
-          type="button"
-          onClick={() => setSort("oldest")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-            sort === "oldest"
-              ? "bg-primary-600 text-white"
-              : "border border-bg-300 text-fg-600 hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600"
-          }`}
-        >
-          <FaSortAmountUp className="size-3" />
-          Oldest
-        </button>
-        <button
-          type="button"
-          onClick={() => setSort("most_liked")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-            sort === "most_liked"
-              ? "bg-primary-600 text-white"
-              : "border border-bg-300 text-fg-600 hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600"
-          }`}
-        >
-          <FaFire className="size-3" />
-          Most Liked
-        </button>
-      </div>
-
-      {searchQuery && (
+      {isSearching && (
         <p className="mt-3 text-sm text-fg-500 dark:text-fg-400">
-          {filteredPosts.length} result{filteredPosts.length !== 1 ? "s" : ""} for "{searchQuery}"
+          {posts.length} result{posts.length !== 1 ? "s" : ""} for "{searchQuery}"
         </p>
       )}
 
       {isLoading && (
         <div className="mt-10 text-center">
           <p className="text-fg-500 dark:text-fg-400">Loading...</p>
+          {isWakingUp && (
+            <p className="mt-2 text-sm text-fg-400 dark:text-fg-500">
+              Server is waking up, this may take a moment...
+            </p>
+          )}
         </div>
       )}
 
       <div className="mt-10 space-y-4">
-        {filteredPosts.map((post) => (
+        {posts.map((post) => (
           <PostCard key={post.id} post={post} onLikeChange={handleLikeChange} />
         ))}
       </div>
 
-      {!isLoading && filteredPosts.length === 0 && (
-        <p className="mt-10 text-center text-sm text-fg-400">
-          {searchQuery ? "No posts found" : "No posts yet"}
-        </p>
-      )}
+      <div ref={sentinelRef} className="py-4">
+        {loadingMore && !isSearching && (
+          <div className="flex items-center justify-center gap-2 text-fg-400">
+            <FaSpinner className="animate-spin" />
+            <span className="text-sm">Loading more...</span>
+          </div>
+        )}
+        {!hasMore && posts.length > 0 && !isSearching && (
+          <p className="text-center text-sm text-fg-400">You've reached the end</p>
+        )}
+        {!isLoading && posts.length === 0 && isSearching && (
+          <p className="text-center text-sm text-fg-400">No posts found</p>
+        )}
+      </div>
     </main>
   </div>
 }
