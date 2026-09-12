@@ -26,7 +26,7 @@ NC='\033[0m' # No Color
 # Default configuration
 DEFAULT_HOST="https://post-panel-api.onrender.com"
 LOCAL_HOST="http://localhost:7180"
-RESULTS_DIR="loadtests/results"
+RESULTS_BASE_DIR="loadtests/results"
 K6_SCRIPT="loadtests/k6_api_test.js"
 ANALYZE_SCRIPT="loadtests/analyze.py"
 
@@ -82,6 +82,14 @@ if [ -z "$BASE_URL" ]; then
   BASE_URL="$DEFAULT_HOST"
 fi
 
+# Determine environment and set results directory
+if [[ "$BASE_URL" == *"localhost"* ]] || [[ "$BASE_URL" == *"127.0.0.1"* ]]; then
+  ENV_NAME="local"
+else
+  ENV_NAME="prod"
+fi
+RESULTS_DIR="$RESULTS_BASE_DIR/$ENV_NAME"
+
 # Print header
 echo ""
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
@@ -115,6 +123,7 @@ echo -e "${BLUE}═════════════════════�
 echo -e "${BLUE}Test Configuration${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo -e "  Target URL:    ${CYAN}$BASE_URL${NC}"
+echo -e "  Environment:   ${CYAN}$ENV_NAME${NC}"
 echo -e "  K6 Script:     ${CYAN}$K6_SCRIPT${NC}"
 echo -e "  Results Dir:   ${CYAN}$RESULTS_DIR${NC}"
 echo -e "  Compare Mode:  ${CYAN}$COMPARE${NC}"
@@ -128,6 +137,7 @@ echo ""
 
 k6 run \
   --env BASE_URL="$BASE_URL" \
+  --env ENV_NAME="$ENV_NAME" \
   --out json="$RESULTS_DIR/k6_raw.json" \
   "$K6_SCRIPT"
 
