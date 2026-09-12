@@ -5,7 +5,6 @@ import { createPost, updatePost, adminUpdatePost, getGithubInfo, getPostById, ge
 import { useToast } from "../context/ToastContext"
 import { useAuth } from "../context/AuthContext"
 import Logo from "../components/Logo"
-import Tooltip from "../components/Tooltip"
 import BlockEditor from "../components/BlockEditor"
 import { uploadMediaBatch, finalizePostMedia } from "../api/media"
 
@@ -205,9 +204,7 @@ function CreatePost() {
       <header className="border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
-            <Tooltip tip="back" side="right">
-              <FaArrowLeft className="text-xs" />
-            </Tooltip>
+            <FaArrowLeft className="text-xs" />
             <Logo className="size-7" />
             <span className="text-sm font-bold tracking-wide uppercase">Post Panel</span>
           </Link>
@@ -281,7 +278,6 @@ function CreatePost() {
                   How would you like to create your post?
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Tooltip tip="generateAI">
                     <button
                       type="button"
                       onClick={handleGenerate}
@@ -300,8 +296,6 @@ function CreatePost() {
                         Auto-fill from repo data
                       </span>
                     </button>
-                  </Tooltip>
-                  <Tooltip tip="customPost">
                     <button
                       type="button"
                       onClick={() => setCreationMethod("custom")}
@@ -313,7 +307,6 @@ function CreatePost() {
                         Write your own content
                       </span>
                     </button>
-                  </Tooltip>
                 </div>
                 {generateError && (
                   <p className="mt-3 text-center text-xs text-red-500">{generateError}</p>
@@ -404,15 +397,12 @@ function CreatePost() {
                 </div>
 
                 <div className="flex items-center justify-end gap-3 pt-4">
-                  <Tooltip tip="cancel">
                     <Link
                       to={isAdmin ? "/admin/dashboard" : "/"}
                       className="rounded-lg border border-bg-300 px-5 py-2.5 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
                     >
                       Cancel
                     </Link>
-                  </Tooltip>
-                  <Tooltip tip={isEdit ? "saveChanges" : "createPost"}>
                     <button
                       type="submit"
                       disabled={isSubmitting || githubStatus === "not-owner"}
@@ -420,7 +410,6 @@ function CreatePost() {
                     >
                       {isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Create Post"}
                     </button>
-                  </Tooltip>
                 </div>
               </>
             )}

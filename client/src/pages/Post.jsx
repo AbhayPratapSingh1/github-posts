@@ -13,7 +13,6 @@ import Logo from "../components/Logo"
 import ImageLightbox from "../components/ImageLightbox"
 import CommentsSection from "../components/Comments"
 import LikeButton from "../components/LikeButton"
-import Tooltip from "../components/Tooltip"
 
 const primaryAction = (post) => {
   if (!post) return null
@@ -126,30 +125,26 @@ function Post() {
           </Link>
         <div className="flex items-center gap-2">
           {post.github && (
-            <Tooltip tip="viewSource">
-              <a
-                href={post.github}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-md border border-bg-300 px-3 py-1.5 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
-              >
-                <FaGithub />
-                GitHub
-              </a>
-            </Tooltip>
+            <a
+              href={post.github}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-md border border-bg-300 px-3 py-1.5 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
+            >
+              <FaGithub />
+              GitHub
+            </a>
           )}
           {action && (
-            <Tooltip tip={actionTip}>
-              <a
-                href={action.href}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-md bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-700"
-              >
-                {action.icon}
-                {action.label}
-              </a>
-            </Tooltip>
+            <a
+              href={action.href}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-md bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-700"
+            >
+              {action.icon}
+              {action.label}
+            </a>
           )}
           {user && (
             <div className="flex items-center gap-2">
@@ -206,30 +201,26 @@ function Post() {
         )}
         <div className="mt-6 flex flex-wrap items-center gap-3">
           {action && (
-            <Tooltip tip={actionTip}>
-              <a
-                href={action.href}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2.5 rounded-lg bg-primary-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
-              >
-                {action.icon}
-                {action.label}
-              </a>
-            </Tooltip>
+            <a
+              href={action.href}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2.5 rounded-lg bg-primary-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+            >
+              {action.icon}
+              {action.label}
+            </a>
           )}
           {post.github && (
-            <Tooltip tip="viewSource">
-              <a
-                href={post.github}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2.5 rounded-lg border border-bg-300 px-6 py-3 text-base font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
-              >
-                <FaGithub />
-                View Source
-              </a>
-            </Tooltip>
+            <a
+              href={post.github}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2.5 rounded-lg border border-bg-300 px-6 py-3 text-base font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
+            >
+              <FaGithub />
+              View Source
+            </a>
           )}
           <LikeButton
             postId={post.id}
@@ -333,51 +324,43 @@ function Post() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           {post.github && (
-            <Tooltip tip="viewSource">
-              <a
-                href={post.github}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2.5 rounded-lg bg-bg-900 px-6 py-3 text-base font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
-              >
-                <FaGithub />
-                GitHub
-              </a>
-            </Tooltip>
+            <a
+              href={post.github}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2.5 rounded-lg bg-bg-900 px-6 py-3 text-base font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
+            >
+              <FaGithub />
+              GitHub
+            </a>
           )}
           {action && (
-            <Tooltip tip={actionTip}>
-              <a
-                href={action.href}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2.5 rounded-lg bg-primary-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
-              >
-                {action.icon}
-                {action.label}
-              </a>
-            </Tooltip>
+            <a
+              href={action.href}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2.5 rounded-lg bg-primary-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+            >
+              {action.icon}
+              {action.label}
+            </a>
           )}
           {user && user.id === post.user_id && (
             <div className="flex items-center gap-3">
-              <Tooltip tip="editPost">
-                <Link
-                  to={`/post/${id}/edit`}
-                  className="flex items-center gap-2.5 rounded-lg border border-primary-300 px-6 py-3 text-base font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-950"
-                >
-                  <FaEdit />
-                  Edit
-                </Link>
-              </Tooltip>
-              <Tooltip tip="deletePost">
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2.5 rounded-lg border border-red-300 px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
-                >
-                  <FaTrash />
-                  Delete
-                </button>
-              </Tooltip>
+              <Link
+                to={`/post/${id}/edit`}
+                className="flex items-center gap-2.5 rounded-lg border border-primary-300 px-6 py-3 text-base font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-950"
+              >
+                <FaEdit />
+                Edit
+              </Link>
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2.5 rounded-lg border border-red-300 px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                <FaTrash />
+                Delete
+              </button>
             </div>
           )}
         </div>

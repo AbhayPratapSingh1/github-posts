@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom"
 import { FaShieldAlt, FaSpinner, FaCheckCircle, FaExclamationTriangle } from "react-icons/fa"
 import { API_BASE } from "../api/client"
 import Logo from "../components/Logo"
-import Tooltip from "../components/Tooltip"
 
 function AdminLogin() {
   const [status, setStatus] = useState("checking")
@@ -102,14 +101,12 @@ function AdminLogin() {
               <FaExclamationTriangle />
               <span>Please log in with GitHub first</span>
             </div>
-            <Tooltip tip="goLogin" side="bottom" className="w-full">
-              <button
-                onClick={() => navigate("/login")}
-                className="w-full rounded-lg bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-              >
-                Go to Login
-              </button>
-            </Tooltip>
+            <button
+              onClick={() => navigate("/login")}
+              className="w-full rounded-lg bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+            >
+              Go to Login
+            </button>
           </div>
         )}
 
@@ -118,14 +115,12 @@ function AdminLogin() {
             <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
               Your account is not authorized for admin access.
             </div>
-            <Tooltip tip="goHome" side="bottom" className="w-full">
-              <button
-                onClick={() => navigate("/")}
-                className="w-full rounded-lg border border-bg-300 px-6 py-3 text-base font-medium transition-colors hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
-              >
-                Go Home
-              </button>
-            </Tooltip>
+            <button
+              onClick={() => navigate("/")}
+              className="w-full rounded-lg border border-bg-300 px-6 py-3 text-base font-medium transition-colors hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
+            >
+              Go Home
+            </button>
           </div>
         )}
 
@@ -158,7 +153,6 @@ function AdminLogin() {
               </div>
             )}
 
-            <Tooltip tip="adminLogin" side="bottom" className="w-full">
             <button
               type="submit"
               disabled={loading}
@@ -167,7 +161,6 @@ function AdminLogin() {
               {loading ? <FaSpinner className="animate-spin" /> : <FaShieldAlt />}
               {loading ? "Signing in..." : "Sign In"}
             </button>
-          </Tooltip>
           </form>
         )}
       </div>

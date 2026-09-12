@@ -4,7 +4,6 @@ import { FaArrowLeft, FaSpinner, FaCheck } from "react-icons/fa"
 import { getGithubInfo, generatePostContent } from "../api/posts"
 import { useToast } from "../context/ToastContext"
 import Logo from "../components/Logo"
-import Tooltip from "../components/Tooltip"
 import BlockEditor from "../components/BlockEditor"
 
 const inputClass =
@@ -62,9 +61,7 @@ function CustomEditPage() {
       <header className="border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
-            <Tooltip tip="back" side="right">
-              <FaArrowLeft className="text-xs" />
-            </Tooltip>
+            <FaArrowLeft className="text-xs" />
             <Logo className="size-7" />
             <span className="text-sm font-bold tracking-wide uppercase">Post Panel</span>
           </Link>
@@ -103,26 +100,22 @@ function CustomEditPage() {
               />
 
               <div className="flex items-center gap-3">
-                <Tooltip tip="fetchInfo">
-                  <button
-                    type="button"
-                    onClick={handleFetchInfo}
-                    disabled={infoStatus === "loading"}
-                    className="flex items-center gap-2 rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium hover:bg-bg-100 disabled:opacity-50 dark:border-bg-700 dark:hover:bg-bg-900"
-                  >
-                    {infoStatus === "loading" ? <FaSpinner className="animate-spin" /> : "Fetch Info"}
-                  </button>
-                </Tooltip>
-                <Tooltip tip="generateAI">
-                  <button
-                    type="button"
-                    onClick={handleGenerate}
-                    disabled={generating || !info}
-                    className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
-                  >
-                    {generating ? <FaSpinner className="animate-spin" /> : "Generate with AI"}
-                  </button>
-                </Tooltip>
+                <button
+                  type="button"
+                  onClick={handleFetchInfo}
+                  disabled={infoStatus === "loading"}
+                  className="flex items-center gap-2 rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium hover:bg-bg-100 disabled:opacity-50 dark:border-bg-700 dark:hover:bg-bg-900"
+                >
+                  {infoStatus === "loading" ? <FaSpinner className="animate-spin" /> : "Fetch Info"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={generating || !info}
+                  className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {generating ? <FaSpinner className="animate-spin" /> : "Generate with AI"}
+                </button>
               </div>
 
               {infoStatus === "success" && info && (

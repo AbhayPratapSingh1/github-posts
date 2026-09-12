@@ -5,7 +5,6 @@ import { API_BASE } from "../api/client"
 import { deleteAllPosts, deleteAllUsers } from "../api/posts"
 import Logo from "../components/Logo"
 import Modal from "../components/Modal"
-import Tooltip from "../components/Tooltip"
 
 function ConfirmModal({ open, onClose, onConfirm, title, confirmText, description, confirmTip = "deleteAll" }) {
   const [input, setInput] = useState("")
@@ -45,23 +44,19 @@ function ConfirmModal({ open, onClose, onConfirm, title, confirmText, descriptio
         autoFocus
       />
       <div className="mt-4 flex justify-end gap-3">
-        <Tooltip tip="cancelAction">
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
-          >
-            Cancel
-          </button>
-        </Tooltip>
-        <Tooltip tip={confirmTip}>
-          <button
-            onClick={handleConfirm}
-            disabled={!isMatch || loading}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Deleting..." : "Delete All"}
-          </button>
-        </Tooltip>
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={!isMatch || loading}
+          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? "Deleting..." : "Delete All"}
+        </button>
       </div>
     </Modal>
   )
@@ -186,30 +181,24 @@ function AdminDashboard() {
             <h1 className="text-xl font-bold">Admin Dashboard</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Tooltip tip="deleteAllPosts">
-              <button
-                onClick={() => setConfirmModal("posts")}
-                className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
-              >
-                <FaTrash /> Delete All Posts
-              </button>
-            </Tooltip>
-            <Tooltip tip="deleteAllUsers">
-              <button
-                onClick={() => setConfirmModal("users")}
-                className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
-              >
-                <FaTrash /> Delete All Users
-              </button>
-            </Tooltip>
-            <Tooltip tip="adminLogout">
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
-              >
-                <FaSignOutAlt /> Logout
-              </button>
-            </Tooltip>
+            <button
+              onClick={() => setConfirmModal("posts")}
+              className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+            >
+              <FaTrash /> Delete All Posts
+            </button>
+            <button
+              onClick={() => setConfirmModal("users")}
+              className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+            >
+              <FaTrash /> Delete All Users
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
+            >
+              <FaSignOutAlt /> Logout
+            </button>
           </div>
         </div>
       </header>
@@ -307,52 +296,42 @@ function AdminDashboard() {
                       <td className="px-4 py-3">{(post.stats || {}).stars || 0}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <Tooltip tip="editPost">
-                            <button
-                              onClick={() => handleEdit(post.id)}
-                              className="rounded p-1.5 text-fg-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30"
-                            >
-                              <FaEdit />
-                            </button>
-                          </Tooltip>
-                          <Tooltip tip="viewPost">
+                          <button
+                            onClick={() => handleEdit(post.id)}
+                            className="rounded p-1.5 text-fg-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30"
+                          >
+                            <FaEdit />
+                          </button>
+                          <a
+                            href={`/post/${post.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded p-1.5 text-fg-400 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/30"
+                          >
+                            <FaEye />
+                          </a>
+                          <button
+                            onClick={() => setDetailPost(post)}
+                            className="rounded p-1.5 text-fg-400 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/30"
+                          >
+                            <FaInfoCircle />
+                          </button>
+                          {post.github && (
                             <a
-                              href={`/post/${post.id}`}
+                              href={post.github}
                               target="_blank"
                               rel="noreferrer"
-                              className="rounded p-1.5 text-fg-400 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/30"
+                              className="rounded p-1.5 text-fg-400 hover:bg-bg-200 hover:text-fg-700 dark:hover:bg-bg-700"
                             >
-                              <FaEye />
+                              <FaExternalLinkAlt />
                             </a>
-                          </Tooltip>
-                          <Tooltip tip="details">
-                            <button
-                              onClick={() => setDetailPost(post)}
-                              className="rounded p-1.5 text-fg-400 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/30"
-                            >
-                              <FaInfoCircle />
-                            </button>
-                          </Tooltip>
-                          {post.github && (
-                            <Tooltip tip="github">
-                              <a
-                                href={post.github}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="rounded p-1.5 text-fg-400 hover:bg-bg-200 hover:text-fg-700 dark:hover:bg-bg-700"
-                              >
-                                <FaExternalLinkAlt />
-                              </a>
-                            </Tooltip>
                           )}
-                          <Tooltip tip="deletePost">
-                            <button
-                              onClick={() => handleDeletePost(post.id)}
-                              className="rounded p-1.5 text-fg-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
-                            >
-                              <FaTrash />
-                            </button>
-                          </Tooltip>
+                          <button
+                            onClick={() => handleDeletePost(post.id)}
+                            className="rounded p-1.5 text-fg-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+                          >
+                            <FaTrash />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -512,25 +491,21 @@ function AdminDashboard() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-bg-200 dark:border-bg-700">
-              <Tooltip tip="edit">
-                <button
-                  onClick={() => {
-                    handleEdit(detailPost.id)
-                    setDetailPost(null)
-                  }}
-                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  <FaEdit /> Edit
-                </button>
-              </Tooltip>
-              <Tooltip tip="delete">
-                <button
-                  onClick={() => handleDeletePost(detailPost.id)}
-                  className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                >
-                  <FaTrash /> Delete
-                </button>
-              </Tooltip>
+              <button
+                onClick={() => {
+                  handleEdit(detailPost.id)
+                  setDetailPost(null)
+                }}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                <FaEdit /> Edit
+              </button>
+              <button
+                onClick={() => handleDeletePost(detailPost.id)}
+                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                <FaTrash /> Delete
+              </button>
             </div>
           </>
         )}

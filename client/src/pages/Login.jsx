@@ -5,7 +5,6 @@ import { useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { API_BASE } from "../api/client"
 import Logo from "../components/Logo"
-import Tooltip from "../components/Tooltip"
 
 function Login() {
   const { user, loading, checkAuth } = useAuth()
@@ -48,7 +47,6 @@ function Login() {
           </p>
         </div>
 
-<Tooltip tip="signIn" side="bottom" className="w-full">
         <button
           onClick={handleGithubLogin}
           className="flex w-full items-center justify-center gap-3 rounded-lg border border-bg-300 bg-bg-50 px-6 py-3 text-base font-semibold shadow-sm transition-colors hover:bg-bg-100 dark:border-bg-700 dark:bg-bg-900 dark:hover:bg-bg-800"
@@ -56,7 +54,6 @@ function Login() {
           <FaGithub className="text-xl" />
           Continue with GitHub
         </button>
-      </Tooltip>
       </div>
     </div>
   )

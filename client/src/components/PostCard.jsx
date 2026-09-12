@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom"
 import { FaPlay, FaGithub } from "react-icons/fa"
 import LikeButton from "./LikeButton"
-import Tooltip from "./Tooltip"
 
 const primaryLabel = (type) => {
   if (type === "playable") return <><FaPlay /> Playable</>
@@ -57,9 +56,7 @@ function PostCard({ post, onLikeChange }) {
           </span>
         )}
         {post.github && (
-          <Tooltip tip="viewSource">
-            <FaGithub className="text-base" />
-          </Tooltip>
+          <FaGithub className="text-base" />
         )}
         <LikeButton
           postId={post.id}

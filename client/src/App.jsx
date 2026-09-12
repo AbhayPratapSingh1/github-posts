@@ -9,6 +9,7 @@ import Users from "./pages/Users"
 import CustomEditPage from "./pages/CustomEditPage"
 import AdminLogin from "./pages/AdminLogin"
 import AdminDashboard from "./pages/AdminDashboard"
+import NotFound from "./pages/NotFound"
 import ProtectedRoute from "./components/ProtectedRoute"
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/post/:id/edit" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <GoToTop />
     </>

@@ -5,7 +5,6 @@ import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import { getPostCommentById, updateComment, deleteComment } from "../api/posts"
 import { Link, useLocation } from "react-router-dom"
-import Tooltip from "./Tooltip"
 
 function Comment({
   comment,
@@ -141,27 +140,23 @@ function Comment({
                 autoFocus
                 className="min-w-0 flex-1 rounded-lg border border-bg-300 bg-bg-50 px-3 py-1.5 text-sm outline-none focus:border-primary-500 dark:border-bg-700 dark:bg-bg-800"
               />
-              <Tooltip tip="save" side="bottom">
-                <button
-                  type="button"
-                  onClick={saveEdit}
-                  disabled={!draft.trim()}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-                >
-                  <FaSave />
-                  Save
-                </button>
-              </Tooltip>
-              <Tooltip tip="cancelEdit" side="bottom">
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-xs font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
-                >
-                  <FaTimes />
-                  Cancel
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={!draft.trim()}
+                className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              >
+                <FaSave />
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-xs font-medium hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-900"
+              >
+                <FaTimes />
+                Cancel
+              </button>
             </div>
           ) : (
             <p className="text-sm leading-relaxed text-fg-800 dark:text-fg-200">
@@ -216,18 +211,15 @@ function Comment({
         {canManage && (
           <div className="flex shrink-0 items-center gap-1">
             {currentUser.id === user_id && (
-              <Tooltip tip="editComment">
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  aria-label="Edit comment"
-                  className="rounded-md p-2 text-fg-500 transition-colors hover:bg-bg-200 hover:text-primary-600 dark:text-fg-400 dark:hover:bg-bg-800 dark:hover:text-primary-400"
-                >
-                  <FaEdit className="size-3.5" />
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                aria-label="Edit comment"
+                className="rounded-md p-2 text-fg-500 transition-colors hover:bg-bg-200 hover:text-primary-600 dark:text-fg-400 dark:hover:bg-bg-800 dark:hover:text-primary-400"
+              >
+                <FaEdit className="size-3.5" />
+              </button>
             )}
-            <Tooltip tip="deleteComment" side="right">
               <button
                 type="button"
                 onClick={() => onDelete(comment.id)}
@@ -236,7 +228,6 @@ function Comment({
               >
                 <FaTrash className="size-3.5" />
               </button>
-            </Tooltip>
           </div>
         )}
       </div>
@@ -399,7 +390,6 @@ function CommentsSection({
               autoComplete="off"
             />
 
-            <Tooltip tip="postComment" side="bottom">
             <button
               type="submit"
               disabled={!input.trim()}
@@ -407,7 +397,6 @@ function CommentsSection({
             >
               Post
             </button>
-          </Tooltip>
           </div>
         </form>
       ) : (
@@ -422,14 +411,12 @@ function CommentsSection({
             </p>
           </div>
 
-          <Tooltip tip="signIn">
           <Link
             to={`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}#comments`}
             className="shrink-0 rounded-lg bg-bg-900 px-4 py-2 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
           >
             Sign in
           </Link>
-        </Tooltip>
 
         </div>
       )}
@@ -472,14 +459,12 @@ function CommentsSection({
 
       {/* See all comments */}
       {!isLoading && postHasMoreComments && (
-        <Tooltip tip="seeAllComments" side="bottom" className="w-full">
-          <button
-            onClick={loadMore}
-            className="w-full py-2 text-center text-sm font-medium text-primary-600 hover:underline dark:text-primary-400"
-          >
-            See all comments
-          </button>
-        </Tooltip>
+        <button
+          onClick={loadMore}
+          className="w-full py-2 text-center text-sm font-medium text-primary-600 hover:underline dark:text-primary-400"
+        >
+          See all comments
+        </button>
       )}
     </div>
   )

@@ -6,7 +6,6 @@ import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
 import Logo from "../components/Logo"
-import Tooltip from "../components/Tooltip"
 
 function Users() {
   const { user } = useAuth()
@@ -39,47 +38,39 @@ function Users() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <Tooltip tip="users">
-                <Link
-                  to="/users"
-                  className="flex items-center gap-1.5 rounded-lg bg-primary-600/10 px-3 py-1.5 text-sm font-semibold text-primary-700 dark:text-primary-400"
-                  aria-current="page"
-                >
-                  <FaUsers />
-                  Users
-                </Link>
-              </Tooltip>
-              <Tooltip tip="newPost">
-                <Link
-                  to="/create"
-                  className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
-                >
-                  <FaPlus className="text-xs" />
-                  New Post
-                </Link>
-              </Tooltip>
+              <Link
+                to="/users"
+                className="flex items-center gap-1.5 rounded-lg bg-primary-600/10 px-3 py-1.5 text-sm font-semibold text-primary-700 dark:text-primary-400"
+                aria-current="page"
+              >
+                <FaUsers />
+                Users
+              </Link>
+              <Link
+                to="/create"
+                className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+              >
+                <FaPlus className="text-xs" />
+                New Post
+              </Link>
               <ProfileMenu />
             </>
           ) : (
             <>
-              <Tooltip tip="users">
-                <Link
-                  to="/users"
-                  className="flex items-center gap-1.5 rounded-lg bg-primary-600/10 px-3 py-1.5 text-sm font-semibold text-primary-700 dark:text-primary-400"
-                  aria-current="page"
-                >
-                  <FaUsers />
-                  Users
-                </Link>
-              </Tooltip>
-              <Tooltip tip="signIn">
-                <Link
-                  to="/login"
-                  className="flex items-center gap-2 rounded-lg bg-bg-900 px-4 py-1.5 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
-                >
-                  Sign in
-                </Link>
-              </Tooltip>
+              <Link
+                to="/users"
+                className="flex items-center gap-1.5 rounded-lg bg-primary-600/10 px-3 py-1.5 text-sm font-semibold text-primary-700 dark:text-primary-400"
+                aria-current="page"
+              >
+                <FaUsers />
+                Users
+              </Link>
+              <Link
+                to="/login"
+                className="flex items-center gap-2 rounded-lg bg-bg-900 px-4 py-1.5 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
+              >
+                Sign in
+              </Link>
             </>
           )}
         </div>
@@ -87,15 +78,13 @@ function Users() {
     </header>
 
     <main className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
-      <Tooltip tip="backToPosts" className="mb-6">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
-        >
-          <FaArrowLeft className="text-xs" />
-          Back to all posts
-        </Link>
-      </Tooltip>
+      <Link
+        to="/"
+        className="mb-6 inline-flex items-center gap-2 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
+      >
+        <FaArrowLeft className="text-xs" />
+        Back to all posts
+      </Link>
 
       <p className="mb-3 text-xs font-semibold tracking-widest text-primary-600 uppercase dark:text-primary-400">
         Community
@@ -128,15 +117,13 @@ function Users() {
               key={u.id}
               className="flex gap-4 rounded-xl border border-bg-200 bg-bg-100 p-5 transition-colors hover:border-primary-400 dark:border-bg-800 dark:bg-bg-900 dark:hover:border-primary-600"
             >
-              <Tooltip tip="viewSource">
-                <img
-                  src={u.avatar_url || `https://github.com/${u.username}.png`}
-                  alt={u.username}
-                  className="size-14 shrink-0 rounded-full"
-                  onClick={() => window.open(`https://github.com/${u.username}`, "_blank")}
-                  style={{ cursor: "pointer" }}
-                />
-              </Tooltip>
+              <img
+                src={u.avatar_url || `https://github.com/${u.username}.png`}
+                alt={u.username}
+                className="size-14 shrink-0 rounded-full"
+                onClick={() => window.open(`https://github.com/${u.username}`, "_blank")}
+                style={{ cursor: "pointer" }}
+              />
               <div className="min-w-0">
                 <h2 className="truncate text-base font-bold text-fg-900 dark:text-fg-100">
                   {u.name || u.username}
