@@ -336,10 +336,10 @@ class Post_handler:
         ) in comments_raw:
             like_count = db.query(CommentLike).filter(CommentLike.comment_id == comment_id).count()
             liked_by_me = False
-            if current_user:
+            if user:
                 liked_by_me = db.query(CommentLike).filter(
                     CommentLike.comment_id == comment_id,
-                    CommentLike.user_id == current_user.id,
+                    CommentLike.user_id == user.id,
                 ).first() is not None
             comment_map[comment_id] = {
                 "id": comment_id,
