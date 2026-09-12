@@ -329,19 +329,19 @@ function CommentsSection({
     if (!window.confirm("Are you sure you want to delete this comment?")) return
 
     const prevComments = comments
-    setComments((prev) => prev.filter((c) => c.id !== commentId))
+    setComments((prev) =>
+      prev.map((c) => (c.id === commentId ? { ...c, is_deleted: true, content: "" } : c))
+    )
 
     try {
       const res = await deleteComment(postId, commentId)
       if (res?.comment) {
-        setComments((prev) => {
-          if (!prev.some((c) => c.id === commentId)) return prev
-          return prev.map((c) => (c.id === commentId ? res.comment : c))
-        })
+        setComments((prev) =>
+          prev.map((c) => (c.id === commentId ? res.comment : c))
+        )
       }
       addToast("Comment deleted", "success")
     } catch (err) {
-      removedIdsRef.current.delete(commentId)
       setComments(prevComments)
       addToast(err.message || "Failed to delete comment", "error")
     }
