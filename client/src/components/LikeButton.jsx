@@ -48,6 +48,18 @@ function LikeButton({ postId, liked, likeCount, onStateChange }) {
     }
   }, [current.liked, current.likeCount, liked, likeCount, postId, user, addToast, onStateChange])
 
+  if (!user) {
+    return (
+      <span
+        className="flex items-center gap-1.5 rounded-full border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-400 dark:border-bg-700 dark:text-fg-500 cursor-not-allowed opacity-60"
+        title="Sign in to like"
+      >
+        <FaRegHeart />
+        <span>{current.likeCount}</span>
+      </span>
+    )
+  }
+
   return (
     <button
       type="button"
