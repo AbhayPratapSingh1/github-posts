@@ -113,29 +113,23 @@ function Users() {
       {!isLoading && users.length > 0 && (
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           {users.map((u) => (
-            <div
+            <Link
               key={u.id}
+              to={`/user/${u.username}`}
               className="flex gap-4 rounded-xl border border-bg-200 bg-bg-100 p-5 transition-colors hover:border-primary-400 dark:border-bg-800 dark:bg-bg-900 dark:hover:border-primary-600"
             >
               <img
                 src={u.avatar_url || `https://github.com/${u.username}.png`}
                 alt={u.username}
                 className="size-14 shrink-0 rounded-full"
-                onClick={() => window.open(`https://github.com/${u.username}`, "_blank")}
-                style={{ cursor: "pointer" }}
               />
               <div className="min-w-0">
                 <h2 className="truncate text-base font-bold text-fg-900 dark:text-fg-100">
                   {u.name || u.username}
                 </h2>
-                <a
-                  href={`https://github.com/${u.username}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm font-medium text-primary-600 hover:underline dark:text-primary-400"
-                >
+                <span className="text-sm font-medium text-primary-600 hover:underline dark:text-primary-400">
                   @{u.username}
-                </a>
+                </span>
                 <p className="mt-1 line-clamp-2 text-sm text-fg-600 dark:text-fg-400">
                   {u.bio || "No bio yet."}
                 </p>
@@ -146,7 +140,7 @@ function Users() {
                   )}
                 </p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
