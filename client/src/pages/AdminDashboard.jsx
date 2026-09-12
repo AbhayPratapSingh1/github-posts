@@ -175,29 +175,29 @@ function AdminDashboard() {
   return (
     <div className="min-h-screen bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
       <header className="sticky top-0 z-40 border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <Logo className="size-8" />
-            <h1 className="text-xl font-bold">Admin Dashboard</h1>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Logo className="size-7 sm:size-8" />
+            <h1 className="text-base font-bold sm:text-xl">Admin Dashboard</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => setConfirmModal("posts")}
-              className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+              className="flex items-center gap-1.5 rounded-lg border border-red-300 px-2 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30 sm:gap-2 sm:px-3 sm:py-2"
             >
-              <FaTrash /> Delete All Posts
+              <FaTrash /> <span className="hidden sm:inline">Delete All Posts</span>
             </button>
             <button
               onClick={() => setConfirmModal("users")}
-              className="flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+              className="flex items-center gap-1.5 rounded-lg border border-red-300 px-2 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30 sm:gap-2 sm:px-3 sm:py-2"
             >
-              <FaTrash /> Delete All Users
+              <FaTrash /> <span className="hidden sm:inline">Delete All Users</span>
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 rounded-lg border border-bg-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800"
+              className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-2 py-1.5 text-sm font-medium transition-colors hover:bg-bg-100 dark:border-bg-700 dark:hover:bg-bg-800 sm:gap-2 sm:px-4 sm:py-2"
             >
-              <FaSignOutAlt /> Logout
+              <FaSignOutAlt /> <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>

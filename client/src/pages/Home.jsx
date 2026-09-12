@@ -116,34 +116,34 @@ function Home() {
 
   return <div className="min-h-screen bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
     <header className="border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
+      <div className="mx-auto flex max-w-3xl items-center justify-between px-3 py-3 sm:px-6 sm:py-4">
           <Link to="/" className="flex items-center gap-2">
             <Logo className="size-7" />
-            <span className="text-sm font-bold tracking-wide uppercase">Post Panel</span>
+            <span className="hidden text-sm font-bold tracking-wide uppercase sm:inline">Post Panel</span>
           </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           {user ? (
             <>
               <Link
                 to="/users"
-                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
+                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-2.5 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400 sm:px-3"
               >
                 <FaUsers />
-                Users
+                <span className="hidden sm:inline">Users</span>
               </Link>
               <Link
                 to="/liked"
-                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-red-400 hover:text-red-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-red-500 dark:hover:text-red-400"
+                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-2.5 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-red-400 hover:text-red-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-red-500 dark:hover:text-red-400 sm:px-3"
               >
                 <FaHeart />
-                Liked
+                <span className="hidden sm:inline">Liked</span>
               </Link>
               <Link
                 to="/create"
-                className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+                className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-2.5 py-1.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700 sm:px-3"
               >
                 <FaPlus className="text-xs" />
-                New Post
+                <span className="hidden sm:inline">New Post</span>
               </Link>
               <ProfileMenu />
             </>
