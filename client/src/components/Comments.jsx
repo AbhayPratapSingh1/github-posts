@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa"
 import { API_BASE } from "../api/client"
 import { useAuth } from "../context/AuthContext"
@@ -29,6 +29,10 @@ function Comment({
   const [draft, setDraft] = useState(content || "")
   const displayName = name || username || "User"
   const githubUsername = username || github_id
+
+  useEffect(() => {
+    if (!editing) setDraft(content || "")
+  }, [content, editing])
 
   const githubUrl = githubUsername
     ? `https://github.com/${githubUsername}`
@@ -249,6 +253,9 @@ function CommentsSection({
   const [input, setInput] = useState("")
   const [postHasMoreComments, setPostHasMoreComments] =
     useState(hasMoreComments)
+  const [submitting, setSubmitting] = useState(false)
+  const removedIdsRef = useRef(new Set())
+  const createSeqRef = useRef(0)
 
   const { user } = useAuth()
   const { addToast } = useToast()
@@ -260,7 +267,26 @@ function CommentsSection({
     e.preventDefault()
 
     const trimmed = input.trim()
-    if (!trimmed) return
+    if (!trimmed || submitting) return
+
+    const tempId = `temp-${++createSeqRef.current}-${Date.now()}`
+    const optimisticComment = {
+      id: tempId,
+      content: trimmed,
+      user_id: user.id,
+      username: user.username,
+      name: user.name,
+      github_id: user.github_id,
+      avatar_url: user.avatar_url,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_deleted: false,
+      _optimistic: true,
+    }
+
+    setInput("")
+    setSubmitting(true)
+    setComments((prev) => [optimisticComment, ...prev])
 
     try {
       const res = await fetch(`${API_BASE}/posts/${postId}/comments`, {
@@ -276,26 +302,31 @@ function CommentsSection({
       })
 
       if (res.ok) {
-        setInput("")
-
-        const data = await res.json()
-
-        setComments((prev) => [data, ...prev])
-
+        const realComment = await res.json()
+        if (removedIdsRef.current.has(tempId)) {
+          removedIdsRef.current.delete(tempId)
+          return
+        }
+        setComments((prev) =>
+          prev.map((c) => (c.id === tempId ? { ...realComment, _optimistic: false } : c))
+        )
         addToast("Comment posted", "success")
       } else {
+        setComments((prev) => prev.filter((c) => c.id !== tempId))
         const err = await res.json()
         addToast(err.error || "Failed to post comment", "error")
       }
     } catch {
+      setComments((prev) => prev.filter((c) => c.id !== tempId))
       addToast("Network error", "error")
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const loadMore = async () => {
     try {
       const allComments = await getPostCommentById(postId)
-
       setComments(allComments)
       setPostHasMoreComments(false)
     } catch {
@@ -306,19 +337,21 @@ function CommentsSection({
   const handleDelete = async (commentId) => {
     if (!window.confirm("Are you sure you want to delete this comment?")) return
 
+    const prevComments = comments
+    setComments((prev) => prev.filter((c) => c.id !== commentId))
+
     try {
       const res = await deleteComment(postId, commentId)
-
       if (res?.comment) {
-        setComments((prev) =>
-          prev.map((c) => (c.id === commentId ? res.comment : c))
-        )
-      } else {
-        setComments((prev) => prev.filter((c) => c.id !== commentId))
+        setComments((prev) => {
+          if (!prev.some((c) => c.id === commentId)) return prev
+          return prev.map((c) => (c.id === commentId ? res.comment : c))
+        })
       }
-
       addToast("Comment deleted", "success")
     } catch (err) {
+      removedIdsRef.current.delete(commentId)
+      setComments(prevComments)
       addToast(err.message || "Failed to delete comment", "error")
     }
   }
@@ -326,13 +359,23 @@ function CommentsSection({
   const handleUpdate = async (commentId, newContent) => {
     if (!newContent.trim()) return
 
+    const prevComments = comments
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId
+          ? { ...c, content: newContent, updated_at: new Date().toISOString(), _optimistic: true }
+          : c
+      )
+    )
+
     try {
       const updated = await updateComment(postId, commentId, newContent)
       setComments((prev) =>
-        prev.map((c) => (c.id === commentId ? updated : c))
+        prev.map((c) => (c.id === commentId ? { ...updated, _optimistic: false } : c))
       )
       addToast("Comment updated", "success")
     } catch (err) {
+      setComments(prevComments)
       addToast(err.message || "Failed to update comment", "error")
     }
   }

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { FaHeart, FaRegHeart } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
@@ -7,16 +7,15 @@ import Tooltip from "./Tooltip"
 
 function LikeButton({ postId, liked, likeCount, onStateChange }) {
   const [state, setState] = useState(null)
-  const [busy, setBusy] = useState(false)
   const { user } = useAuth()
   const { addToast } = useToast()
+  const requestIdRef = useRef(0)
 
   const current = state || { liked: Boolean(liked), likeCount: likeCount || 0 }
 
-  const handleClick = async (e) => {
+  const handleClick = useCallback(async (e) => {
     e.preventDefault()
     e.stopPropagation()
-    if (busy) return
 
     if (!user) {
       addToast("Sign in to like posts", "info")
@@ -30,31 +29,31 @@ function LikeButton({ postId, liked, likeCount, onStateChange }) {
     }
 
     setState(next)
-    setBusy(true)
+    if (onStateChange) onStateChange(next)
+
+    const reqId = ++requestIdRef.current
 
     try {
       const res = await likePost(postId, nextLiked)
+      if (reqId !== requestIdRef.current) return
       const confirmed = { liked: res.liked, likeCount: res.like_count }
       setState(confirmed)
       if (onStateChange) onStateChange(confirmed)
-      addToast(res.liked ? "Liked post" : "Removed like", "success")
     } catch (err) {
+      if (reqId !== requestIdRef.current) return
       setState(null)
       if (onStateChange) {
         onStateChange({ liked: Boolean(liked), likeCount: likeCount || 0 })
       }
       addToast(err.message || "Failed to update like", "error")
-    } finally {
-      setBusy(false)
     }
-  }
+  }, [current.liked, current.likeCount, liked, likeCount, postId, user, addToast, onStateChange])
 
   return (
     <Tooltip tip={current.liked ? "unlike" : "like"}>
       <button
         type="button"
         onClick={handleClick}
-        disabled={busy}
         aria-pressed={current.liked}
         aria-label={current.liked ? "Unlike post" : "Like post"}
         className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
