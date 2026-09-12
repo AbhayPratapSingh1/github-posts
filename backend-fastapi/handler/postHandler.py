@@ -366,6 +366,8 @@ class Post_handler:
             else:
                 top_level.append(comment)
 
+        top_level.reverse()
+
         result["comments"] = top_level
 
         return result

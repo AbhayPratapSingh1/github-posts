@@ -631,6 +631,8 @@ def get_comments(post_id: str, request: Request, db: Session = Depends(get_db)):
         else:
             top_level.append(comment)
 
+    top_level.reverse()
+
     return top_level
 
 
