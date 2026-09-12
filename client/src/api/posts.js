@@ -11,11 +11,11 @@ function authHeaders(extra = {}) {
   return headers
 }
 
-export const getPosts = (offset = 0, limit = 12, sort = "newest") =>
-  request(`/posts?offset=${offset}&limit=${limit}&sort=${sort}`)
+export const getPosts = (offset = 0, limit = 12) =>
+  request(`/posts?offset=${offset}&limit=${limit}`)
 
-export const searchPosts = (q, offset = 0, limit = 12, sort = "newest") =>
-  request(`/posts/search?q=${encodeURIComponent(q)}&offset=${offset}&limit=${limit}&sort=${sort}`)
+export const searchPosts = (q, offset = 0, limit = 12) =>
+  request(`/posts/search?q=${encodeURIComponent(q)}&offset=${offset}&limit=${limit}`)
 
 export const getPostById = (id) => request(`/posts/${id}`)
 
@@ -105,3 +105,6 @@ export const generatePostContent = async (url) => {
   }
   return res.json()
 }
+
+export const getUserPosts = (username) =>
+  request(`/users/${username}/posts`)

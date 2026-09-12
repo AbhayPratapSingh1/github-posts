@@ -797,10 +797,9 @@ def getPosts(request: Request, db: Session = Depends(get_db)):
     try:
         offset = int(request.query_params.get("offset", 0))
         limit = int(request.query_params.get("limit", 12))
-        sort = request.query_params.get("sort", "newest")
         limit = min(limit, 50)
         current_user = get_user_from_request(request, db)
-        return postHandler.get_all_posts(db, offset=offset, limit=limit, user=current_user, sort=sort)
+        return postHandler.get_all_posts(db, offset=offset, limit=limit, user=current_user)
     except Exception:
         return {"posts": [], "total": 0, "offset": offset, "limit": limit}
 
@@ -812,10 +811,9 @@ def searchPosts(request: Request, q: str = "", db: Session = Depends(get_db)):
         query = q.strip()
         offset = int(request.query_params.get("offset", 0))
         limit = int(request.query_params.get("limit", 12))
-        sort = request.query_params.get("sort", "newest")
         limit = min(limit, 50)
         current_user = get_user_from_request(request, db)
-        return postHandler.search_posts(db, query, user=current_user, offset=offset, limit=limit, sort=sort)
+        return postHandler.search_posts(db, query, user=current_user, offset=offset, limit=limit)
     except Exception:
         return {"posts": [], "total": 0, "offset": 0, "limit": 12}
 
@@ -830,6 +828,16 @@ def getLikedPosts(request: Request, db: Session = Depends(get_db)):
         return postHandler.get_liked_posts(db, user)
     except Exception:
         return {"posts": [], "total": 0}
+
+@app.get('/api/users/{username}/posts')
+def getUserPosts(username: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        return JSONResponse(status_code=404, content={"error": "User not found"})
+    try:
+        return postHandler.get_user_posts(db, user.id)
+    except Exception:
+        return {"posts": [], "total": 0, "user": None}
 
 @app.get('/api/posts/{id}')
 def getPostById(id, request: Request, db: Session = Depends(get_db)):

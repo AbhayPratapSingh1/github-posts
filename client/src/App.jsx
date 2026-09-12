@@ -6,6 +6,7 @@ import CreatePost from "./pages/CreatePost"
 import Login from "./pages/Login"
 import Liked from "./pages/Liked"
 import Users from "./pages/Users"
+import UserProfile from "./pages/UserProfile"
 import CustomEditPage from "./pages/CustomEditPage"
 import AdminLogin from "./pages/AdminLogin"
 import AdminDashboard from "./pages/AdminDashboard"
@@ -20,6 +21,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/liked" element={<ProtectedRoute><Liked /></ProtectedRoute>} />
         <Route path="/users" element={<Users />} />
+        <Route path="/user/:username" element={<UserProfile />} />
         <Route path="/custom-edit-page" element={<CustomEditPage />} />
         <Route path="/custom-quill" element={<CustomEditPage />} />
         <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
