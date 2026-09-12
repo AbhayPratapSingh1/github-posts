@@ -14,7 +14,7 @@ function GoToTop() {
   if (!visible) return null
 
   return (
-    <Tooltip tip="goToTop" side="left" className="fixed bottom-6 right-6 z-50">
+    <Tooltip tip="goToTop" side="left" className="fixed bottom-6 right-20 z-50">
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         className="flex size-10 items-center justify-center rounded-full bg-bg-900 text-bg-50 shadow-lg transition-opacity hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
