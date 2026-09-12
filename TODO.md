@@ -6,6 +6,8 @@ Small changes to batch into a single commit later.
 - [x] Remove "Back to top" link from Post page footer
 - [x] Remove credentials login (User ID/Password input box) from Login page — keep only GitHub login
 - [x] OAuth Sign-In: Return User to Original Page
+PRIORITY - [x] update the create post page and make user to add repo url first, then give 2 option, generate with AI and custom.
+
 - [ ] Implement dark mode toggle across the website
 
 
