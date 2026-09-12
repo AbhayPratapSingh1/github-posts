@@ -1,14 +1,14 @@
 """add performance indexes
 
 Revision ID: k0l1m2n3o4p5
-Revises: j9k0l1m2n3o4
+Revises: b2c3d4e5f6a7
 Create Date: 2026-09-12
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = 'k0l1m2n3o4p5'
-down_revision = 'j9k0l1m2n3o4'
+down_revision = 'b2c3d4e5f6a7'
 branch_labels = None
 depends_on = None
 
