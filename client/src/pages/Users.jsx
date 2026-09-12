@@ -98,7 +98,7 @@ function Users() {
       </p>
 
       {!isLoading && users.length > 0 && (
-        <div className="relative mt-8">
+        <div className="relative z-0 mt-8">
           <FaSearch className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-400" />
           <input
             type="text"
