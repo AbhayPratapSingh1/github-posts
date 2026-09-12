@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom"
 import GoToTop from "./components/GoToTop"
+import FeedbackButton from "./components/FeedbackButton"
 import Home from "./pages/Home"
 import Post from "./pages/Post"
 import CreatePost from "./pages/CreatePost"
@@ -35,6 +36,7 @@ function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <GoToTop />
+      <FeedbackButton />
     </>
   )
 }

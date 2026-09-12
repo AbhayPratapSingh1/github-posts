@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { FaPlus, FaHeart, FaUsers, FaSpinner, FaSearch, FaTimes, FaComment } from "react-icons/fa"
+import { FaPlus, FaHeart, FaUsers, FaSpinner, FaSearch, FaTimes } from "react-icons/fa"
 import { getPosts, searchPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
@@ -132,13 +132,6 @@ function Home() {
                 <span className="hidden sm:inline">Users</span>
               </Link>
               <Link
-                to="/feedback"
-                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-2.5 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400 sm:px-3"
-              >
-                <FaComment />
-                <span className="hidden sm:inline">Feedback</span>
-              </Link>
-              <Link
                 to="/liked"
                 className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-2.5 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-red-400 hover:text-red-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-red-500 dark:hover:text-red-400 sm:px-3"
               >
@@ -155,21 +148,12 @@ function Home() {
               <ProfileMenu />
             </>
           ) : (
-            <>
-              <Link
-                to="/feedback"
-                className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-2.5 py-1.5 text-sm font-medium text-fg-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600 dark:hover:text-primary-400 sm:px-3"
-              >
-                <FaComment />
-                <span className="hidden sm:inline">Feedback</span>
-              </Link>
-              <Link
-                to="/login"
-                className="flex items-center gap-2 rounded-lg bg-bg-900 px-4 py-1.5 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
-              >
-                Sign in
-              </Link>
-            </>
+            <Link
+              to="/login"
+              className="flex items-center gap-2 rounded-lg bg-bg-900 px-4 py-1.5 text-sm font-semibold text-bg-50 hover:bg-bg-800 dark:bg-bg-50 dark:text-bg-950 dark:hover:bg-bg-200"
+            >
+              Sign in
+            </Link>
           )}
         </div>
       </div>
