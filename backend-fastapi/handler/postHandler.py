@@ -304,6 +304,7 @@ class Post_handler:
                 Comment.user_id,
                 Comment.content,
                 Comment.is_deleted,
+                Comment.parent_id,
                 Comment.created_at,
                 Comment.updated_at,
                 User.github_id,
@@ -313,13 +314,34 @@ class Post_handler:
             )
             .join(User, User.id == Comment.user_id)
             .filter(Comment.post_id == id)
-            .order_by(Comment.created_at.desc())
-            .limit(6)
+            .order_by(Comment.created_at.asc())
             .all()
         )
 
-        comments = [
-            {
+        from app.models import CommentLike
+
+        comment_map = {}
+        for (
+            comment_id,
+            comment_user_id,
+            content,
+            is_deleted,
+            parent_id,
+            created_at,
+            updated_at,
+            github_id,
+            username,
+            name,
+            avatar_url,
+        ) in comments_raw:
+            like_count = db.query(CommentLike).filter(CommentLike.comment_id == comment_id).count()
+            liked_by_me = False
+            if current_user:
+                liked_by_me = db.query(CommentLike).filter(
+                    CommentLike.comment_id == comment_id,
+                    CommentLike.user_id == current_user.id,
+                ).first() is not None
+            comment_map[comment_id] = {
                 "id": comment_id,
                 "user_id": comment_user_id,
                 "github_id": github_id,
@@ -328,25 +350,23 @@ class Post_handler:
                 "avatar_url": avatar_url,
                 "content": "" if is_deleted else content,
                 "is_deleted": bool(is_deleted),
+                "parent_id": parent_id,
+                "like_count": like_count,
+                "liked_by_me": liked_by_me,
                 "created_at": created_at,
                 "updated_at": updated_at,
+                "replies": [],
             }
-            for (
-                comment_id,
-                comment_user_id,
-                content,
-                is_deleted,
-                created_at,
-                updated_at,
-                github_id,
-                username,
-                name,
-                avatar_url,
-            ) in comments_raw
-        ]
 
-        result["comments"] = comments[:5]
-        result["has_more_comments"] = len(comments) == 6
+        top_level = []
+        for cid, comment in comment_map.items():
+            pid = comment["parent_id"]
+            if pid and pid in comment_map:
+                comment_map[pid]["replies"].append(comment)
+            else:
+                top_level.append(comment)
+
+        result["comments"] = top_level
 
         return result
 

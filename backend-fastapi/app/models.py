@@ -47,9 +47,23 @@ class Comment(Base):
     post_id = Column(String, nullable=False, index=True)
     user_id = Column(Integer, nullable=False)
     content = Column(String, nullable=False)
+    parent_id = Column(Integer, nullable=True, index=True)
     created_at = Column(String)
     updated_at = Column(String)
     is_deleted = Column(Boolean, default=False)
+
+
+class CommentLike(Base):
+    __tablename__ = 'comment_like'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    comment_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    created_at = Column(String)
+
+    __table_args__ = (
+        UniqueConstraint('comment_id', 'user_id', name='uq_comment_like'),
+    )
 
 
 class Like(Base):

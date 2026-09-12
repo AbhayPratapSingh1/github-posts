@@ -1,0 +1,58 @@
+{
+  "has_baseline": true,
+  "previous_timestamp": "2026-09-12T06:38:39.685Z",
+  "current_timestamp": "2026-09-12T06:39:50.158Z",
+  "metrics": {
+    "avg_duration": {
+      "label": "Avg Duration (ms)",
+      "current": 297.1788970588231,
+      "previous": 2.8972750000000014,
+      "percent_change": 10157.186392690475,
+      "threshold": 10
+    },
+    "p95_duration": {
+      "label": "P95 Duration (ms)",
+      "current": 918.3749,
+      "previous": 5.515849999999999,
+      "percent_change": 16549.74391979478,
+      "threshold": 20
+    },
+    "max_duration": {
+      "label": "Max Duration (ms)",
+      "current": 1062.615,
+      "previous": 25.987,
+      "percent_change": 3989.0252818717054,
+      "threshold": 30
+    },
+    "rps": {
+      "label": "Requests/sec",
+      "current": 6.68544966690853,
+      "previous": 10.912191775223135,
+      "percent_change": -38.734125970107186,
+      "threshold": -10
+    }
+  },
+  "regressions": [
+    {
+      "metric": "Avg Duration (ms)",
+      "change": 10157.186392690475,
+      "severity": "severe"
+    },
+    {
+      "metric": "P95 Duration (ms)",
+      "change": 16549.74391979478,
+      "severity": "severe"
+    },
+    {
+      "metric": "Max Duration (ms)",
+      "change": 3989.0252818717054,
+      "severity": "severe"
+    },
+    {
+      "metric": "Requests/sec",
+      "change": -38.734125970107186,
+      "severity": "severe"
+    }
+  ],
+  "improvements": []
+}

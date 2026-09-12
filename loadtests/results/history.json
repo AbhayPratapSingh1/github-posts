@@ -1,0 +1,80 @@
+[
+  {
+    "timestamp": "2026-09-12T06:36:28.099Z",
+    "total_requests": 244,
+    "failed_requests": 49,
+    "avg_duration": 387.74860655737706,
+    "min_duration": 89.466,
+    "max_duration": 1953.743,
+    "p95_duration": 947.05865,
+    "p99_duration": 0,
+    "rps": 6.046430290395427,
+    "error_rate": 0,
+    "endpoints": {
+      "status is 200 or 404": {
+        "name": "status is 200 or 404",
+        "requests": 0,
+        "avg_duration": 0,
+        "p95_duration": 0
+      },
+      "response time < 2s": {
+        "name": "response time < 2s",
+        "requests": 0,
+        "avg_duration": 0,
+        "p95_duration": 0
+      }
+    }
+  },
+  {
+    "timestamp": "2026-09-12T06:38:39.685Z",
+    "total_requests": 440,
+    "failed_requests": 153,
+    "avg_duration": 2.8972750000000014,
+    "min_duration": 0.407,
+    "max_duration": 25.987,
+    "p95_duration": 5.515849999999999,
+    "p99_duration": 0,
+    "rps": 10.912191775223135,
+    "error_rate": 0,
+    "endpoints": {
+      "status is 200 or 404": {
+        "name": "status is 200 or 404",
+        "requests": 0,
+        "avg_duration": 0,
+        "p95_duration": 0
+      },
+      "response time < 2s": {
+        "name": "response time < 2s",
+        "requests": 0,
+        "avg_duration": 0,
+        "p95_duration": 0
+      }
+    }
+  },
+  {
+    "timestamp": "2026-09-12T06:39:50.158Z",
+    "total_requests": 272,
+    "failed_requests": 26,
+    "avg_duration": 297.1788970588231,
+    "min_duration": 95.424,
+    "max_duration": 1062.615,
+    "p95_duration": 918.3749,
+    "p99_duration": 0,
+    "rps": 6.68544966690853,
+    "error_rate": 0,
+    "endpoints": {
+      "status is 200 or 404": {
+        "name": "status is 200 or 404",
+        "requests": 0,
+        "avg_duration": 0,
+        "p95_duration": 0
+      },
+      "response time < 2s": {
+        "name": "response time < 2s",
+        "requests": 0,
+        "avg_duration": 0,
+        "p95_duration": 0
+      }
+    }
+  }
+]

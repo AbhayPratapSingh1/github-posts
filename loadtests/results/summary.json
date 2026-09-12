@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-09-12T06:39:50.158Z",
+  "total_requests": 272,
+  "failed_requests": 26,
+  "avg_duration": 297.1788970588231,
+  "min_duration": 95.424,
+  "max_duration": 1062.615,
+  "p95_duration": 918.3749,
+  "p99_duration": 0,
+  "rps": 6.68544966690853,
+  "error_rate": 0,
+  "endpoints": {
+    "status is 200 or 404": {
+      "name": "status is 200 or 404",
+      "requests": 0,
+      "avg_duration": 0,
+      "p95_duration": 0
+    },
+    "response time < 2s": {
+      "name": "response time < 2s",
+      "requests": 0,
+      "avg_duration": 0,
+      "p95_duration": 0
+    }
+  }
+}

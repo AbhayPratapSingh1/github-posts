@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from handler.postHandler import Post_handler
 from database import get_db
-from app.models import User, Post, Comment, Like, PostMedia
+from app.models import User, Post, Comment, Like, PostMedia, CommentLike
 from auth import (
     create_access_token,
     create_refresh_token,
@@ -527,12 +527,20 @@ async def create_comment(
 
     body = await request.json()
     content = body.get("content", "").strip()
+    parent_id = body.get("parent_id")
 
     if not content:
         return JSONResponse(
             status_code=400,
             content={"error": "Content required"}
         )
+
+    if parent_id:
+        parent_comment = db.query(Comment).filter(Comment.id == parent_id, Comment.post_id == post_id).first()
+        if not parent_comment:
+            return JSONResponse(status_code=404, content={"error": "Parent comment not found"})
+        if parent_comment.parent_id is not None:
+            return JSONResponse(status_code=400, content={"error": "Cannot nest replies more than one level"})
 
     from datetime import datetime, timezone
 
@@ -542,6 +550,7 @@ async def create_comment(
         post_id=post_id,
         user_id=user.id,
         content=content,
+        parent_id=parent_id,
         created_at=now,
         updated_at=now,
     )
@@ -560,13 +569,19 @@ async def create_comment(
         "avatar_url": user.avatar_url,
         "content": comment.content,
         "is_deleted": bool(comment.is_deleted),
+        "parent_id": comment.parent_id,
+        "like_count": 0,
+        "liked_by_me": False,
         "created_at": comment.created_at,
         "updated_at": comment.updated_at,
     }
 
 
 @app.get("/api/posts/{post_id}/comments")
-def get_comments(post_id: str, db: Session = Depends(get_db)):
+def get_comments(post_id: str, request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    current_user_id = user.id if user else None
+
     comments = (
         db.query(
             Comment,
@@ -578,13 +593,20 @@ def get_comments(post_id: str, db: Session = Depends(get_db)):
         )
         .join(User, Comment.user_id == User.id)
         .filter(Comment.post_id == post_id)
-        .order_by(Comment.created_at.desc())
-        .limit(6)
+        .order_by(Comment.created_at.asc())
         .all()
     )
 
-    return [
-        {
+    comment_map = {}
+    for c, user_id, github_id, username, name, avatar_url in comments:
+        like_count = db.query(CommentLike).filter(CommentLike.comment_id == c.id).count()
+        liked_by_me = False
+        if current_user_id:
+            liked_by_me = db.query(CommentLike).filter(
+                CommentLike.comment_id == c.id,
+                CommentLike.user_id == current_user_id,
+            ).first() is not None
+        comment_map[c.id] = {
             "id": c.id,
             "user_id": user_id,
             "github_id": github_id,
@@ -593,15 +615,34 @@ def get_comments(post_id: str, db: Session = Depends(get_db)):
             "avatar_url": avatar_url,
             "content": "" if c.is_deleted else c.content,
             "is_deleted": bool(c.is_deleted),
+            "parent_id": c.parent_id,
+            "like_count": like_count,
+            "liked_by_me": liked_by_me,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
+            "replies": [],
         }
-        for c, user_id, github_id, username, name, avatar_url in comments
-    ]
+
+    top_level = []
+    for cid, comment in comment_map.items():
+        pid = comment["parent_id"]
+        if pid and pid in comment_map:
+            comment_map[pid]["replies"].append(comment)
+        else:
+            top_level.append(comment)
+
+    return top_level
 
 
-def _comment_to_dict(comment: Comment, db: Session) -> dict:
+def _comment_to_dict(comment: Comment, db: Session, user_id: int = None) -> dict:
     author = db.query(User).filter(User.id == comment.user_id).first()
+    like_count = db.query(CommentLike).filter(CommentLike.comment_id == comment.id).count()
+    liked_by_me = False
+    if user_id:
+        liked_by_me = db.query(CommentLike).filter(
+            CommentLike.comment_id == comment.id,
+            CommentLike.user_id == user_id,
+        ).first() is not None
     return {
         "id": comment.id,
         "post_id": comment.post_id,
@@ -612,6 +653,9 @@ def _comment_to_dict(comment: Comment, db: Session) -> dict:
         "avatar_url": author.avatar_url if author else None,
         "content": "" if comment.is_deleted else comment.content,
         "is_deleted": bool(comment.is_deleted),
+        "parent_id": comment.parent_id,
+        "like_count": like_count,
+        "liked_by_me": liked_by_me,
         "created_at": comment.created_at,
         "updated_at": comment.updated_at,
     }
@@ -654,7 +698,7 @@ async def update_comment(
     db.commit()
     db.refresh(comment)
 
-    return _comment_to_dict(comment, db)
+    return _comment_to_dict(comment, db, user.id)
 
 
 @app.delete("/api/posts/{post_id}/comments/{comment_id}")
@@ -687,7 +731,7 @@ def delete_comment(
         db.refresh(comment)
         return {
             "message": "Comment deleted",
-            "comment": _comment_to_dict(comment, db),
+            "comment": _comment_to_dict(comment, db, user.id),
         }
 
     if comment.user_id != user.id:
@@ -699,6 +743,45 @@ def delete_comment(
     db.delete(comment)
     db.commit()
     return {"message": "Comment deleted"}
+
+
+@app.post("/api/posts/{post_id}/comments/{comment_id}/like")
+def like_comment(
+    post_id: str,
+    comment_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    comment = db.query(Comment).filter(Comment.id == comment_id, Comment.post_id == post_id).first()
+    if not comment:
+        return JSONResponse(status_code=404, content={"error": "Comment not found"})
+
+    existing = db.query(CommentLike).filter(
+        CommentLike.comment_id == comment_id,
+        CommentLike.user_id == user.id,
+    ).first()
+
+    if existing:
+        db.delete(existing)
+        db.commit()
+        liked = False
+    else:
+        like = CommentLike(
+            comment_id=comment_id,
+            user_id=user.id,
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(like)
+        db.commit()
+        liked = True
+
+    like_count = db.query(CommentLike).filter(CommentLike.comment_id == comment_id).count()
+    return {"liked": liked, "like_count": like_count}
+
 
 class LikeRequest(BaseModel):
     liked: bool
