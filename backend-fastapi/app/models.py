@@ -104,3 +104,14 @@ class PostMedia(Base):
     )
 
 
+class Feedback(Base):
+    __tablename__ = 'feedback'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    content = Column(String, nullable=False)
+    category = Column(String, nullable=False, default='general')
+    is_anonymous = Column(Boolean, default=False)
+    created_at = Column(String)
+
+

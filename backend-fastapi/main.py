@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from handler.postHandler import Post_handler
 from database import get_db
-from app.models import User, Post, Comment, Like, PostMedia, CommentLike
+from app.models import User, Post, Comment, Like, PostMedia, CommentLike, Feedback
 from auth import (
     create_access_token,
     create_refresh_token,
@@ -1413,6 +1413,106 @@ def get_post_media(post_id: str, db: Session = Depends(get_db)):
             for m in media_list
         ]
     }
+
+
+@app.post("/api/feedback")
+async def submit_feedback(request: Request, db: Session = Depends(get_db)):
+    body = await request.json()
+    content = body.get("content", "").strip()
+    category = body.get("category", "general").strip()
+    is_anonymous = body.get("is_anonymous", False)
+
+    if not content:
+        return JSONResponse(status_code=400, content={"error": "Content required"})
+
+    user = get_user_from_request(request, db)
+
+    feedback = Feedback(
+        user_id=user.id if user and not is_anonymous else None,
+        content=content,
+        category=category,
+        is_anonymous=is_anonymous,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(feedback)
+    db.commit()
+    db.refresh(feedback)
+
+    return {
+        "id": feedback.id,
+        "content": feedback.content,
+        "category": feedback.category,
+        "is_anonymous": feedback.is_anonymous,
+        "created_at": feedback.created_at,
+    }
+
+
+@app.get("/api/feedback/mine")
+def get_my_feedback(request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    feedbacks = (
+        db.query(Feedback)
+        .filter(Feedback.user_id == user.id)
+        .order_by(Feedback.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": f.id,
+            "content": f.content,
+            "category": f.category,
+            "is_anonymous": f.is_anonymous,
+            "created_at": f.created_at,
+        }
+        for f in feedbacks
+    ]
+
+
+@app.get("/api/admin/feedback")
+def admin_get_all_feedback(request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+        return JSONResponse(status_code=403, content={"error": "Admin access required"})
+
+    feedbacks = (
+        db.query(Feedback, User.username, User.name, User.avatar_url)
+        .outerjoin(User, Feedback.user_id == User.id)
+        .order_by(Feedback.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": f.id,
+            "content": f.content,
+            "category": f.category,
+            "is_anonymous": f.is_anonymous,
+            "username": None if f.is_anonymous else username,
+            "name": None if f.is_anonymous else (name or ""),
+            "avatar_url": None if f.is_anonymous else avatar_url,
+            "created_at": f.created_at,
+        }
+        for f, username, name, avatar_url in feedbacks
+    ]
+
+
+@app.delete("/api/admin/feedback/{feedback_id}")
+def admin_delete_feedback(feedback_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_user_from_request(request, db)
+    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+        return JSONResponse(status_code=403, content={"error": "Admin access required"})
+
+    feedback = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if not feedback:
+        return JSONResponse(status_code=404, content={"error": "Feedback not found"})
+
+    db.delete(feedback)
+    db.commit()
+    return {"message": "Feedback deleted"}
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { FaTrash, FaSignOutAlt, FaUsers, FaFileAlt, FaStar, FaCodeBranch, FaExternalLinkAlt, FaEdit, FaEye, FaInfoCircle } from "react-icons/fa"
+import { FaTrash, FaSignOutAlt, FaUsers, FaFileAlt, FaStar, FaCodeBranch, FaExternalLinkAlt, FaEdit, FaEye, FaInfoCircle, FaComment, FaUserSecret } from "react-icons/fa"
 import { API_BASE } from "../api/client"
-import { deleteAllPosts, deleteAllUsers } from "../api/posts"
+import { deleteAllPosts, deleteAllUsers, getAdminFeedback, deleteFeedback } from "../api/posts"
 import Logo from "../components/Logo"
 import Modal from "../components/Modal"
 
@@ -68,6 +68,8 @@ function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("posts")
   const [detailPost, setDetailPost] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null) // "posts" | "users" | null
+  const [feedback, setFeedback] = useState([])
+  const [loadingFeedback, setLoadingFeedback] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -140,6 +142,26 @@ function AdminDashboard() {
       users: [],
       stats: { ...prev.stats, totalUsers: 0 },
     }))
+  }
+
+  useEffect(() => {
+    if (activeTab === "feedback" && feedback.length === 0) {
+      setLoadingFeedback(true)
+      getAdminFeedback()
+        .then((data) => setFeedback(data))
+        .catch(() => {})
+        .finally(() => setLoadingFeedback(false))
+    }
+  }, [activeTab])
+
+  const handleDeleteFeedback = async (id) => {
+    if (!confirm("Delete this feedback?")) return
+    try {
+      await deleteFeedback(id)
+      setFeedback((prev) => prev.filter((f) => f.id !== id))
+    } catch {
+      // ignore
+    }
   }
 
   const formatDate = (ts) => {
@@ -247,6 +269,16 @@ function AdminDashboard() {
               }`}
             >
               Languages
+            </button>
+            <button
+              onClick={() => setActiveTab("feedback")}
+              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "feedback"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-fg-500 hover:text-fg-700"
+              }`}
+            >
+              Feedback ({feedback.length})
             </button>
           </div>
 
@@ -394,6 +426,52 @@ function AdminDashboard() {
                     <div className="text-xs text-fg-500">posts</div>
                   </div>
                 ))}
+            </div>
+          )}
+
+          {activeTab === "feedback" && (
+            <div className="mt-4">
+              {loadingFeedback ? (
+                <p className="py-8 text-center text-sm text-fg-500">Loading feedback...</p>
+              ) : feedback.length === 0 ? (
+                <p className="py-8 text-center text-sm text-fg-500">No feedback yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {feedback.map((f) => (
+                    <div key={f.id} className="rounded-lg border border-bg-200 bg-bg-50 p-4 dark:border-bg-800 dark:bg-bg-900">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="rounded-full bg-primary-600/10 px-2 py-0.5 text-xs font-medium text-primary-700 dark:text-primary-400">
+                              {f.category}
+                            </span>
+                            {f.is_anonymous ? (
+                              <span className="flex items-center gap-1 text-fg-400">
+                                <FaUserSecret /> Anonymous
+                              </span>
+                            ) : f.username ? (
+                              <span className="text-fg-600 dark:text-fg-400">
+                                @{f.username}
+                                {f.name && ` (${f.name})`}
+                              </span>
+                            ) : null}
+                            <span className="text-fg-400">
+                              {new Date(f.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-fg-800 dark:text-fg-200">{f.content}</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteFeedback(f.id)}
+                          className="shrink-0 rounded p-1.5 text-fg-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+                        >
+                          <FaTrash className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

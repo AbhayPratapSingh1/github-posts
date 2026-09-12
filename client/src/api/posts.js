@@ -121,3 +121,22 @@ export const generatePostContent = async (url) => {
 
 export const getUserPosts = (username) =>
   request(`/users/${username}/posts`)
+
+export const submitFeedback = (content, category = "general", isAnonymous = false) =>
+  request("/feedback", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ content, category, is_anonymous: isAnonymous }),
+  })
+
+export const getMyFeedback = () =>
+  request("/feedback/mine", { headers: authHeaders() })
+
+export const getAdminFeedback = () =>
+  request("/admin/feedback", { headers: authHeaders() })
+
+export const deleteFeedback = (id) =>
+  request(`/admin/feedback/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  })
