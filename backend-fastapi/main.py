@@ -13,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from all_posts import posts
 from handler.postHandler import Post_handler
 from database import get_db
 from app.models import User, Post, Comment, Like, PostMedia
@@ -798,11 +797,12 @@ def getPosts(request: Request, db: Session = Depends(get_db)):
     try:
         offset = int(request.query_params.get("offset", 0))
         limit = int(request.query_params.get("limit", 12))
+        sort = request.query_params.get("sort", "newest")
         limit = min(limit, 50)
         current_user = get_user_from_request(request, db)
-        return postHandler.get_all_posts(db, offset=offset, limit=limit, user=current_user)
+        return postHandler.get_all_posts(db, offset=offset, limit=limit, user=current_user, sort=sort)
     except Exception:
-        return posts
+        return {"posts": [], "total": 0, "offset": offset, "limit": limit}
 
 @app.get('/api/posts/search')
 def searchPosts(request: Request, q: str = "", db: Session = Depends(get_db)):
@@ -812,9 +812,10 @@ def searchPosts(request: Request, q: str = "", db: Session = Depends(get_db)):
         query = q.strip()
         offset = int(request.query_params.get("offset", 0))
         limit = int(request.query_params.get("limit", 12))
+        sort = request.query_params.get("sort", "newest")
         limit = min(limit, 50)
         current_user = get_user_from_request(request, db)
-        return postHandler.search_posts(db, query, user=current_user, offset=offset, limit=limit)
+        return postHandler.search_posts(db, query, user=current_user, offset=offset, limit=limit, sort=sort)
     except Exception:
         return {"posts": [], "total": 0, "offset": 0, "limit": 12}
 

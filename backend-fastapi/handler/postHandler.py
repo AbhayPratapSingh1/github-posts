@@ -64,7 +64,7 @@ class Post_handler:
             )
         return like_count, liked
 
-    def get_all_posts(self, db, offset=0, limit=12, user=None):
+    def get_all_posts(self, db, offset=0, limit=12, user=None, sort="newest"):
         like_stats = (
             db.query(
                 Like.post_id.label("post_id"),
@@ -84,6 +84,13 @@ class Post_handler:
             .subquery()
         )
 
+        if sort == "oldest":
+            order = Post.created_at.asc().nullslast()
+        elif sort == "most_liked":
+            order = func.coalesce(like_stats.c.like_count, 0).desc()
+        else:
+            order = Post.created_at.desc().nullslast()
+
         query = (
             db.query(
                 *self._post_list_columns(),
@@ -97,9 +104,7 @@ class Post_handler:
                 like_stats,
                 like_stats.c.post_id == Post.id,
             )
-            .order_by(
-                Post.created_at.desc().nullslast()
-            )
+            .order_by(order)
             .offset(offset)
             .limit(limit)
         )
@@ -134,7 +139,7 @@ class Post_handler:
             "limit": limit,
         }
     
-    def search_posts(self, db, query, user=None, offset=0, limit=12):
+    def search_posts(self, db, query, user=None, offset=0, limit=12, sort="newest"):
         like = f"%{query}%"
         
         like_stats = (
@@ -157,6 +162,13 @@ class Post_handler:
         )
 
         search_filter = Post.title.ilike(like) | Post.shortDescription.ilike(like)
+
+        if sort == "oldest":
+            order = Post.created_at.asc().nullslast()
+        elif sort == "most_liked":
+            order = func.coalesce(like_stats.c.like_count, 0).desc()
+        else:
+            order = Post.created_at.desc().nullslast()
         
         query_result = (
             db.query(
@@ -169,7 +181,7 @@ class Post_handler:
             .outerjoin(User, User.id == Post.user_id)
             .outerjoin(like_stats, like_stats.c.post_id == Post.id)
             .filter(search_filter)
-            .order_by(Post.created_at.desc().nullslast())
+            .order_by(order)
             .offset(offset)
             .limit(limit)
         )

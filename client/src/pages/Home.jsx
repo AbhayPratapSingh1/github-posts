@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { FaPlus, FaHeart, FaUsers, FaSpinner, FaSearch, FaTimes } from "react-icons/fa"
+import { FaPlus, FaHeart, FaUsers, FaSpinner, FaSearch, FaTimes, FaSortAmountDown, FaSortAmountUp, FaFire } from "react-icons/fa"
 import { getPosts, searchPosts } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
@@ -20,14 +20,15 @@ function Home() {
   const [hasMore, setHasMore] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  const [sort, setSort] = useState("newest")
   const offsetRef = useRef(0)
   const sentinelRef = useRef(null)
   const debounceRef = useRef(null)
   const searchOffsetRef = useRef(0)
 
-  const loadPosts = useCallback(async (offset, append = false) => {
+  const loadPosts = useCallback(async (offset, append = false, sortBy) => {
     try {
-      const data = await getPosts(offset, PAGE_SIZE)
+      const data = await getPosts(offset, PAGE_SIZE, sortBy || sort)
       const newPosts = data.posts || []
       setPosts((prev) => append ? [...prev, ...newPosts] : newPosts)
       setHasMore(offset + PAGE_SIZE < data.total)
@@ -35,11 +36,11 @@ function Home() {
     } catch {
       addToast("Failed to load posts", "error")
     }
-  }, [addToast])
+  }, [addToast, sort])
 
-  const loadSearchResults = useCallback(async (query, offset, append = false) => {
+  const loadSearchResults = useCallback(async (query, offset, append = false, sortBy) => {
     try {
-      const data = await searchPosts(query, offset, PAGE_SIZE)
+      const data = await searchPosts(query, offset, PAGE_SIZE, sortBy || sort)
       const newPosts = data.posts || []
       setPosts((prev) => append ? [...prev, ...newPosts] : newPosts)
       setHasMore(offset + PAGE_SIZE < data.total)
@@ -47,7 +48,7 @@ function Home() {
     } catch {
       addToast("Search failed", "error")
     }
-  }, [addToast])
+  }, [addToast, sort])
 
   const handleLikeChange = (post, state) => {
     setPosts((prev) =>
@@ -70,7 +71,7 @@ function Home() {
       setLoadingMore(false)
       searchOffsetRef.current = 0
       try {
-        const data = await searchPosts(value.trim(), 0, PAGE_SIZE)
+        const data = await searchPosts(value.trim(), 0, PAGE_SIZE, sort)
         setPosts(data.posts || [])
         setHasMore(PAGE_SIZE < data.total)
         searchOffsetRef.current = PAGE_SIZE
@@ -78,11 +79,24 @@ function Home() {
         addToast("Search failed", "error")
       }
     }, 300)
-  }, [addToast, loadPosts])
+  }, [addToast, loadPosts, sort])
 
   useEffect(() => {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [])
+
+  useEffect(() => {
+    if (isLoading) return
+    offsetRef.current = 0
+    searchOffsetRef.current = 0
+    setPosts([])
+    setHasMore(true)
+    if (isSearching && searchQuery.trim()) {
+      loadSearchResults(searchQuery, 0)
+    } else {
+      loadPosts(0)
+    }
+  }, [sort])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -188,6 +202,45 @@ function Home() {
             <FaTimes className="size-4" />
           </button>
         )}
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSort("newest")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            sort === "newest"
+              ? "bg-primary-600 text-white"
+              : "border border-bg-300 text-fg-600 hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600"
+          }`}
+        >
+          <FaSortAmountDown className="size-3" />
+          Newest
+        </button>
+        <button
+          type="button"
+          onClick={() => setSort("oldest")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            sort === "oldest"
+              ? "bg-primary-600 text-white"
+              : "border border-bg-300 text-fg-600 hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600"
+          }`}
+        >
+          <FaSortAmountUp className="size-3" />
+          Oldest
+        </button>
+        <button
+          type="button"
+          onClick={() => setSort("most_liked")}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            sort === "most_liked"
+              ? "bg-primary-600 text-white"
+              : "border border-bg-300 text-fg-600 hover:border-primary-400 hover:text-primary-600 dark:border-bg-700 dark:text-fg-400 dark:hover:border-primary-600"
+          }`}
+        >
+          <FaFire className="size-3" />
+          Most Liked
+        </button>
       </div>
 
       {isSearching && (
