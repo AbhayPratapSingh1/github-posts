@@ -222,7 +222,11 @@ export function blocksToHtml(blocks) {
         parts.push(`<pre><code>${escapeHtml(b.text)}</code></pre>`)
         break
       case "image":
-        parts.push(b.src ? `<img src="${escapeHtml(b.src)}" alt="${escapeHtml(b.alt || "")}" />` : "")
+        if (b.mediaId && b.file) {
+          parts.push(`<img src="{{media:${b.mediaId}}}" alt="${escapeHtml(b.alt || "")}" />`)
+        } else {
+          parts.push(b.src ? `<img src="${escapeHtml(b.src)}" alt="${escapeHtml(b.alt || "")}" />` : "")
+        }
         break
       case "gallery": {
         const cols = b.columns || 2
@@ -233,18 +237,23 @@ export function blocksToHtml(blocks) {
         const imgsJson = JSON.stringify(imgsData)
         const visibleImgs = mode === "truncated" ? allImgs.slice(0, cols) : allImgs
         const inner = visibleImgs.map((img, i) => {
+          const imgSrc = img.mediaId && img.file ? `{{media:${img.mediaId}}}` : escapeHtml(img.src)
           const isLast = mode === "truncated" && i === visibleImgs.length - 1 && allImgs.length > cols
           if (isLast) {
             const remaining = allImgs.length - cols
-            return `<div class="gallery-more"><img src="${escapeHtml(img.src)}" alt="${escapeHtml(img.alt || "")}" style="filter:brightness(.6);" /><span>+${remaining}</span></div>`
+            return `<div class="gallery-more"><img src="${imgSrc}" alt="${escapeHtml(img.alt || "")}" style="filter:brightness(.6);" /><span>+${remaining}</span></div>`
           }
-          return `<img src="${escapeHtml(img.src)}" alt="${escapeHtml(img.alt || "")}" />`
+          return `<img src="${imgSrc}" alt="${escapeHtml(img.alt || "")}" />`
         }).join("\n")
         parts.push(`<div class="gallery-grid" data-mode="${mode}" data-images="${escapeHtml(imgsJson)}" style="grid-template-columns:repeat(${cols},1fr);">\n${inner}\n</div>`)
         break
       }
       case "video":
-        parts.push(b.url ? `<video src="${escapeHtml(b.url)}" controls></video>` : "")
+        if (b.mediaId && b.file) {
+          parts.push(`<video src="{{media:${b.mediaId}}}" controls></video>`)
+        } else {
+          parts.push(b.url ? `<video src="${escapeHtml(b.url)}" controls></video>` : "")
+        }
         break
       case "hr":
         parts.push("<hr />")

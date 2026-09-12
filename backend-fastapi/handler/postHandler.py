@@ -1,5 +1,5 @@
 from app.models import Post, User, Like, Comment
-from sqlalchemy import exists, func, case, literal
+from sqlalchemy import exists, func, case, literal, select
 
 class Post_handler:
     def __init__(self):
@@ -205,9 +205,11 @@ class Post_handler:
     def get_post_by_id(self, id, db, user=None):
 
         if user:
-            liked_expr = exists().where(
-                (Like.post_id == Post.id) &
-                (Like.user_id == user.id)
+            liked_expr = exists(
+                select(Like.id).where(
+                    (Like.post_id == Post.id) &
+                    (Like.user_id == user.id)
+                ).correlate(Post)
             )
         else:
             liked_expr = literal(False)

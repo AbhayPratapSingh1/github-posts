@@ -38,13 +38,8 @@ const blockStyle = (b) => {
   return "text-base leading-relaxed"
 }
 
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
+function generateMediaId() {
+  return `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
 function AutoGrow({ value, onChange, className, placeholder }) {
@@ -171,11 +166,12 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={async (e) => {
+                onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (!file) return
-                  const dataUrl = await fileToDataUrl(file)
-                  update({ src: dataUrl })
+                  const mediaId = generateMediaId()
+                  const previewUrl = URL.createObjectURL(file)
+                  update({ src: previewUrl, mediaId, file, mediaType: 'image' })
                 }}
               />
               Upload
@@ -259,11 +255,12 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
                 type="file"
                 accept="video/*"
                 className="hidden"
-                onChange={async (e) => {
+                onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (!file) return
-                  const dataUrl = await fileToDataUrl(file)
-                  update({ url: dataUrl })
+                  const mediaId = generateMediaId()
+                  const previewUrl = URL.createObjectURL(file)
+                  update({ url: previewUrl, mediaId, file, mediaType: 'video' })
                 }}
               />
               Upload
@@ -322,14 +319,15 @@ function BlockRow({ block, index, count, marker, onChange, onMove, onRemove, onD
       update({ images: nextImages })
     }
 
-    const addGalleryImages = async (files) => {
-      const newImages = await Promise.all(
-        files.map(async (file) => ({
-          id: `gimg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          src: await fileToDataUrl(file),
-          alt: file.name.replace(/\.[^.]+$/, ""),
-        }))
-      )
+    const addGalleryImages = (files) => {
+      const newImages = files.map((file) => ({
+        id: `gimg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        mediaId: generateMediaId(),
+        src: URL.createObjectURL(file),
+        file,
+        alt: file.name.replace(/\.[^.]+$/, ""),
+        mediaType: 'image',
+      }))
       update({ images: [...images, ...newImages] })
     }
 
@@ -664,6 +662,11 @@ export default function BlockEditor({ value, onChange, placeholder }) {
     }
     setBlocks(parseHtmlToBlocks(value || ""))
   }, [value])
+
+  useEffect(() => {
+    window.__blockEditorBlocks = blocks
+    return () => { window.__blockEditorBlocks = null }
+  }, [blocks])
 
   const emitChange = useCallback((nextBlocks) => {
     isInternalUpdate.current = true

@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext"
 import Logo from "../components/Logo"
 import Tooltip from "../components/Tooltip"
 import BlockEditor from "../components/BlockEditor"
+import { uploadMediaBatch, finalizePostMedia } from "../api/media"
 
 const inputClass =
   "w-full rounded-lg border border-bg-300 bg-bg-50 px-4 py-2.5 text-sm text-fg-900 outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
@@ -145,6 +146,7 @@ function CreatePost() {
     }
 
     try {
+      let postId = id
       if (isEdit) {
         if (isAdmin) {
           await adminUpdatePost(id, payload)
@@ -152,8 +154,40 @@ function CreatePost() {
           await updatePost(id, payload)
         }
       } else {
-        await createPost(payload)
+        const result = await createPost(payload)
+        postId = result.id
       }
+
+      // Collect media from editor blocks
+      const mediaItems = []
+      if (window.__blockEditorBlocks) {
+        for (const block of window.__blockEditorBlocks) {
+          if (block.mediaId && block.file) {
+            mediaItems.push({
+              clientMediaId: block.mediaId,
+              type: block.mediaType || 'image',
+              file: block.file,
+            })
+          }
+          if (block.type === 'gallery' && block.images) {
+            for (const img of block.images) {
+              if (img.mediaId && img.file) {
+                mediaItems.push({
+                  clientMediaId: img.mediaId,
+                  type: 'image',
+                  file: img.file,
+                })
+              }
+            }
+          }
+        }
+      }
+
+      if (mediaItems.length > 0 && postId) {
+        await uploadMediaBatch(postId, mediaItems)
+        await finalizePostMedia(postId)
+      }
+
       navigate(isAdmin ? "/admin/dashboard" : "/")
     } catch (err) {
       const msg = err.message || "Failed to save post"

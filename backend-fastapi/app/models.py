@@ -66,3 +66,27 @@ class Like(Base):
     )
 
 
+class PostMedia(Base):
+    __tablename__ = 'post_media'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    post_id = Column(String, nullable=False, index=True)
+    client_media_id = Column(String, nullable=False)
+    type = Column(String, nullable=False)  # 'image' or 'video'
+    status = Column(String, nullable=False, default='pending')  # 'pending', 'uploading', 'uploaded', 'failed'
+    mime_type = Column(String)
+    file_size = Column(Integer)
+    original_filename = Column(String)
+    cloudinary_public_id = Column(String)
+    cloudinary_resource_type = Column(String)
+    cloudinary_url = Column(String)
+    cloudinary_secure_url = Column(String)
+    created_at = Column(String)
+    updated_at = Column(String)
+
+    __table_args__ = (
+        UniqueConstraint('post_id', 'client_media_id', name='uq_post_media_client'),
+        Index('ix_post_media_status', 'status'),
+    )
+
+

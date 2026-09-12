@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from all_posts import posts
 from handler.postHandler import Post_handler
 from database import get_db
-from app.models import User, Post, Comment, Like
+from app.models import User, Post, Comment, Like, PostMedia
 from auth import (
     create_access_token,
     create_refresh_token,
@@ -25,9 +25,21 @@ from auth import (
     refresh_access_token,
     require_user,
 )
-from config import APP_ENV, PORT, BACKEND_URL, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, ADMIN_GITHUB_IDS, ADMIN_PASSWORD
+from config import APP_ENV, PORT, BACKEND_URL, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, ADMIN_GITHUB_IDS, ADMIN_PASSWORD, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, MAX_IMAGE_SIZE_MB, MAX_VIDEO_SIZE_MB, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def log_cloudinary_config():
+    print(f"[Cloudinary] CLOUD_NAME: {CLOUDINARY_CLOUD_NAME or 'NOT SET'}")
+    print(f"[Cloudinary] API_KEY: {CLOUDINARY_API_KEY or 'NOT SET'}")
+    print(f"[Cloudinary] API_SECRET: {'SET' if CLOUDINARY_API_SECRET else 'NOT SET'}")
+    print(f"[Cloudinary] MAX_IMAGE_SIZE_MB: {MAX_IMAGE_SIZE_MB}")
+    print(f"[Cloudinary] MAX_VIDEO_SIZE_MB: {MAX_VIDEO_SIZE_MB}")
+    print(f"[Cloudinary] ALLOWED_IMAGE_TYPES: {ALLOWED_IMAGE_TYPES}")
+    print(f"[Cloudinary] ALLOWED_VIDEO_TYPES: {ALLOWED_VIDEO_TYPES}")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -1125,6 +1137,189 @@ async def updatePost(id, body: CreatePostRequest, request: Request, db: Session 
 
     updated = postHandler.update_post(id, db, data)
     return updated
+
+
+# ── Media Upload Endpoints ─────────────────────────────────────────────────────
+
+import hashlib
+import time as time_module
+
+class MediaSignRequest(BaseModel):
+    clientMediaId: str
+    type: str  # 'image' or 'video'
+    mimeType: str
+    fileSize: int
+    originalFilename: str
+
+class MediaConfirmRequest(BaseModel):
+    clientMediaId: str
+    cloudinaryPublicId: str
+    resourceType: str
+    secureUrl: str
+
+def _generate_cloudinary_signature(params: dict, timestamp: int) -> str:
+    """Generate Cloudinary upload signature."""
+    if not CLOUDINARY_API_SECRET:
+        return ""
+    sorted_params = "&".join(f"{k}={v}" for k, v in sorted(params.items()) if v)
+    sign_string = f"{sorted_params}&timestamp={timestamp}"
+    return hashlib.sha1((sign_string + CLOUDINARY_API_SECRET).encode()).hexdigest()
+
+
+@app.post('/api/posts/{post_id}/media/sign')
+def sign_media_upload(post_id: str, body: MediaSignRequest, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    post = postHandler.get_post_raw(post_id, db)
+    if not post:
+        return JSONResponse(status_code=404, content={"error": "Post not found"})
+    if post.user_id != user.id:
+        return JSONResponse(status_code=403, content={"error": "Not authorized"})
+
+    # Validate media type
+    if body.type not in ["image", "video"]:
+        return JSONResponse(status_code=400, content={"error": "Invalid media type"})
+
+    # Validate MIME type
+    allowed = ALLOWED_IMAGE_TYPES if body.type == "image" else ALLOWED_VIDEO_TYPES
+    if body.mimeType not in allowed:
+        return JSONResponse(status_code=400, content={"error": f"Invalid MIME type '{body.mimeType}'. Allowed: {allowed}"})
+
+    # Validate file size
+    max_size = MAX_IMAGE_SIZE_MB if body.type == "image" else MAX_VIDEO_SIZE_MB
+    if body.fileSize > max_size * 1024 * 1024:
+        return JSONResponse(status_code=400, content={"error": f"File too large. Max: {max_size}MB"})
+
+    # Create or get media record
+    media = db.query(PostMedia).filter(
+        PostMedia.post_id == post_id,
+        PostMedia.client_media_id == body.clientMediaId
+    ).first()
+
+    if not media:
+        media = PostMedia(
+            post_id=post_id,
+            client_media_id=body.clientMediaId,
+            type=body.type,
+            status="pending",
+            mime_type=body.mimeType,
+            file_size=body.fileSize,
+            original_filename=body.originalFilename,
+            created_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(timezone.utc).isoformat(),
+        )
+        db.add(media)
+        db.commit()
+        db.refresh(media)
+
+    # Generate signature
+    timestamp = int(time_module.time())
+    folder = f"posts/{post_id}"
+    resource_type = "image" if body.type == "image" else "video"
+
+    params = {
+        "folder": folder,
+    }
+    signature = _generate_cloudinary_signature(params, timestamp)
+
+    return {
+        "mediaId": media.id,
+        "cloudName": CLOUDINARY_CLOUD_NAME,
+        "apiKey": CLOUDINARY_API_KEY,
+        "timestamp": timestamp,
+        "signature": signature,
+        "folder": folder,
+        "resourceType": resource_type,
+    }
+
+
+@app.post('/api/posts/{post_id}/media/confirm')
+def confirm_media_upload(post_id: str, body: MediaConfirmRequest, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    post = postHandler.get_post_raw(post_id, db)
+    if not post:
+        return JSONResponse(status_code=404, content={"error": "Post not found"})
+    if post.user_id != user.id:
+        return JSONResponse(status_code=403, content={"error": "Not authorized"})
+
+    media = db.query(PostMedia).filter(
+        PostMedia.post_id == post_id,
+        PostMedia.client_media_id == body.clientMediaId
+    ).first()
+
+    if not media:
+        return JSONResponse(status_code=404, content={"error": "Media record not found"})
+
+    media.status = "uploaded"
+    media.cloudinary_public_id = body.cloudinaryPublicId
+    media.cloudinary_resource_type = body.resourceType
+    media.cloudinary_secure_url = body.secureUrl
+    media.cloudinary_url = body.secureUrl.replace("https://", "http://")
+    media.updated_at = datetime.now(timezone.utc).isoformat()
+    db.commit()
+
+    return {"success": True, "mediaId": media.id}
+
+
+@app.post('/api/posts/{post_id}/finalize')
+def finalize_post_media(post_id: str, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    if not user:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    post = postHandler.get_post_raw(post_id, db)
+    if not post:
+        return JSONResponse(status_code=404, content={"error": "Post not found"})
+    if post.user_id != user.id:
+        return JSONResponse(status_code=403, content={"error": "Not authorized"})
+
+    # Get all media for this post
+    media_list = db.query(PostMedia).filter(PostMedia.post_id == post_id).all()
+
+    # Resolve placeholders in description
+    description = post.description or ""
+    for media in media_list:
+        placeholder = f"{{{{media:{media.client_media_id}}}}}"
+        if placeholder in description:
+            if media.status == "uploaded" and media.cloudinary_secure_url:
+                description = description.replace(placeholder, media.cloudinary_secure_url)
+            else:
+                # Remove unresolved placeholder
+                description = description.replace(placeholder, "")
+
+    post.description = description
+    post.updated_at = datetime.now(timezone.utc).isoformat()
+    db.commit()
+
+    return {
+        "success": True,
+        "postId": post_id,
+        "uploadedMedia": len([m for m in media_list if m.status == "uploaded"]),
+        "pendingMedia": len([m for m in media_list if m.status != "uploaded"]),
+    }
+
+
+@app.get('/api/posts/{post_id}/media')
+def get_post_media(post_id: str, db: Session = Depends(get_db)):
+    media_list = db.query(PostMedia).filter(PostMedia.post_id == post_id).all()
+    return {
+        "media": [
+            {
+                "id": m.id,
+                "clientMediaId": m.client_media_id,
+                "type": m.type,
+                "status": m.status,
+                "cloudinaryUrl": m.cloudinary_secure_url,
+            }
+            for m in media_list
+        ]
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
