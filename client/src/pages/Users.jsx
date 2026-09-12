@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { FaUsers, FaPlus, FaSpinner, FaArrowLeft } from "react-icons/fa"
+import { FaUsers, FaPlus, FaSpinner, FaArrowLeft, FaSearch, FaTimes } from "react-icons/fa"
 import { getUsers } from "../api/users"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
@@ -12,6 +12,7 @@ function Users() {
   const { addToast } = useToast()
   const [users, setUsers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [search, setSearch] = useState("")
 
   useEffect(() => {
     let cancelled = false
@@ -96,6 +97,28 @@ function Users() {
         Everyone building on Post Panel.
       </p>
 
+      {!isLoading && users.length > 0 && (
+        <div className="relative mt-8">
+          <FaSearch className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search users..."
+            className="w-full rounded-lg border border-bg-300 bg-bg-100 py-2.5 pl-10 pr-10 text-sm text-fg-900 outline-none transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 dark:border-bg-700 dark:bg-bg-900 dark:text-fg-100"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-400 hover:text-fg-600"
+            >
+              <FaTimes className="size-4" />
+            </button>
+          )}
+        </div>
+      )}
+
       {isLoading && (
         <div className="mt-10 flex items-center justify-center gap-2 text-fg-400">
           <FaSpinner className="animate-spin" />
@@ -112,7 +135,16 @@ function Users() {
 
       {!isLoading && users.length > 0 && (
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
-          {users.map((u) => (
+          {users
+            .filter((u) => {
+              if (!search.trim()) return true
+              const q = search.toLowerCase()
+              return (
+                u.name?.toLowerCase().includes(q) ||
+                u.username?.toLowerCase().includes(q)
+              )
+            })
+            .map((u) => (
             <Link
               key={u.id}
               to={`/user/${u.username}`}
@@ -142,6 +174,15 @@ function Users() {
               </div>
             </Link>
           ))}
+          {users.filter((u) => {
+            if (!search.trim()) return true
+            const q = search.toLowerCase()
+            return u.name?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q)
+          }).length === 0 && search.trim() && (
+            <p className="col-span-full text-center text-sm text-fg-400 py-10">
+              No users found for "{search}"
+            </p>
+          )}
         </div>
       )}
     </main>
