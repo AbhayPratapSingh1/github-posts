@@ -97,6 +97,11 @@ function Home() {
   }, [loadPosts])
 
   useEffect(() => {
+    if (!user) return
+    loadPosts(0).catch(() => {})
+  }, [user?.id])
+
+  useEffect(() => {
     if (!sentinelRef.current) return
     const observer = new IntersectionObserver(
       (entries) => {

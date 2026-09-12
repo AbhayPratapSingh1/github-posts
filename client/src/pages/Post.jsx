@@ -51,6 +51,16 @@ function Post() {
   }, [id])
 
   useEffect(() => {
+    if (!id) return
+    getPostById(id)
+      .then((data) => {
+        setPost(data)
+        setComments(data.comments || [])
+      })
+      .catch(() => {})
+  }, [user?.id])
+
+  useEffect(() => {
     if (!isLoading && window.location.hash === "#comments") {
       setTimeout(() => {
         document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" })

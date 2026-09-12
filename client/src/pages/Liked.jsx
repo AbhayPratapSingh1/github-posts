@@ -29,6 +29,17 @@ function Liked() {
     return () => { cancelled = true }
   }, [addToast])
 
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    getLikedPosts()
+      .then((data) => {
+        if (!cancelled) setLikedPosts(data.posts || [])
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [user?.id])
+
   const handleLikeChange = (post, state) => {
     setLikedPosts((prev) => {
       if (state.liked) {
