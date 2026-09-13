@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { FaTrash, FaSignOutAlt, FaUsers, FaFileAlt, FaStar, FaCodeBranch, FaExternalLinkAlt, FaEdit, FaEye, FaInfoCircle, FaComment, FaUserSecret } from "react-icons/fa"
 import { API_BASE } from "../api/client"
-import { deleteAllPosts, deleteAllUsers, getAdminFeedback, deleteFeedback } from "../api/posts"
+import { deleteAllPosts, deleteAllUsers, getAdminFeedback, deleteFeedback, adminDeletePost } from "../api/posts"
 import Logo from "../components/Logo"
 import Modal from "../components/Modal"
 
@@ -73,14 +73,8 @@ function AdminDashboard() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const token = localStorage.getItem("admin_token")
-    if (!token) {
-      navigate("/admin", { replace: true })
-      return
-    }
-
     fetch(`${API_BASE}/admin/dashboard`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
     })
       .then((res) => {
         if (!res.ok) throw new Error("Unauthorized")
@@ -88,8 +82,6 @@ function AdminDashboard() {
       })
       .then(setData)
       .catch(() => {
-        localStorage.removeItem("admin_token")
-        localStorage.removeItem("admin_user")
         navigate("/admin", { replace: true })
       })
       .finally(() => setLoading(false))
@@ -97,20 +89,14 @@ function AdminDashboard() {
 
   const handleDeletePost = async (postId) => {
     if (!confirm("Delete this post?")) return
-    const token = localStorage.getItem("admin_token")
     try {
-      const res = await fetch(`${API_BASE}/admin/posts/${postId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        setData((prev) => ({
-          ...prev,
-          posts: prev.posts.filter((p) => p.id !== postId),
-          stats: { ...prev.stats, totalPosts: prev.stats.totalPosts - 1 },
-        }))
-        setDetailPost(null)
-      }
+      await adminDeletePost(postId)
+      setData((prev) => ({
+        ...prev,
+        posts: prev.posts.filter((p) => p.id !== postId),
+        stats: { ...prev.stats, totalPosts: prev.stats.totalPosts - 1 },
+      }))
+      setDetailPost(null)
     } catch {
       // ignore
     }
@@ -120,9 +106,12 @@ function AdminDashboard() {
     navigate(`/admin/post/${postId}/edit`)
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("admin_token")
-    localStorage.removeItem("admin_user")
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include" })
+    } catch {
+      // ignore
+    }
     navigate("/admin", { replace: true })
   }
 

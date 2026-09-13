@@ -470,12 +470,18 @@ class Post_handler:
         db.commit()
         return post
 
+    # Ownership/identity columns are never updatable through this path,
+    # regardless of what a caller's dict happens to contain.
+    _NON_UPDATABLE_FIELDS = {"id", "user_id"}
+
     def update_post(self, id, db, data):
         post = db.query(Post).filter(Post.id == id).first()
         if not post:
             return None
         for key, value in data.items():
-            if value is not None:
+            if key in self._NON_UPDATABLE_FIELDS:
+                continue
+            if value is not None and hasattr(Post, key):
                 setattr(post, key, value)
         db.commit()
         db.refresh(post)

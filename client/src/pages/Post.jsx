@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import DOMPurify from "dompurify"
 import { FaGithub, FaPlay, FaGlobe, FaTrash, FaEdit } from "react-icons/fa"
 import { READ_WORD_PER_MINUTE } from "../config/text"
 import { POST_TYPE } from "../config/posts"
@@ -252,7 +253,7 @@ function Post() {
         <div className="prose max-w-none dark:prose-invert">
           {post.description ? (
             /<[a-z][\s\S]*>/i.test(post.description) ? (
-              <div dangerouslySetInnerHTML={{ __html: post.description }} />
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.description) }} />
             ) : (
               <Markdown
                 remarkPlugins={[remarkGfm]}

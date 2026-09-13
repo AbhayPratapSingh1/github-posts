@@ -25,25 +25,27 @@ describe("request", () => {
     )
   })
 
-  it("includes Authorization header when token exists", async () => {
-    localStorage.setItem("session_token", "test-token-123")
+  it("includes X-CSRF-Token header from cookie on mutating requests", async () => {
+    document.cookie = "csrf_token=csrf-abc-123"
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({}),
     }))
 
-    await request("/posts")
+    await request("/posts", { method: "POST", body: "{}" })
     expect(fetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         headers: expect.objectContaining({
-          Authorization: "Bearer test-token-123",
+          "X-CSRF-Token": "csrf-abc-123",
         }),
       })
     )
+    document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
   })
 
-  it("does not include Authorization header when no token", async () => {
+  it("does not include X-CSRF-Token header on GET requests", async () => {
+    document.cookie = "csrf_token=csrf-abc-123"
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({}),
@@ -51,7 +53,8 @@ describe("request", () => {
 
     await request("/posts")
     const [, options] = fetch.mock.calls[0]
-    expect(options.headers?.Authorization).toBeUndefined()
+    expect(options.headers?.["X-CSRF-Token"]).toBeUndefined()
+    document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
   })
 
   it("throws on non-ok response", async () => {

@@ -1,11 +1,11 @@
 # Backend Features
 
 ## 1. Auth
-- POST /api/auth/login (valid + invalid credentials)
 - POST /api/auth/logout (clears cookies)
 - GET /api/auth/me (authenticated + unauthenticated)
 - POST /api/auth/refresh (valid + invalid refresh token)
 - GET /api/auth/github (redirects to GitHub OAuth)
+- GET /api/auth/github/callback (exchanges code, sets cookies, no tokens in the redirect URL)
 
 ## 2. Posts CRUD
 - GET /api/posts (pagination: offset, limit, total)

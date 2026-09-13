@@ -1,14 +1,30 @@
 """Load tests for Post Panel API using Locust.
 
-Run:
+Run (from the same environment/.env as the target server, so JWT_SECRET matches):
   locust -f backend-fastapi/loadtests/locustfile.py --host=http://127.0.0.1:7180
 
 Open http://localhost:8089 to configure and start the test.
+
+Authenticated requests mint their own JWT directly via `auth.create_access_token`
+(same as the backend test suite does) rather than logging in over HTTP. There is
+no password-based login endpoint anymore — GitHub OAuth is the only real login
+path, and it can't be automated headlessly here. Tokens are sent as
+`Authorization: Bearer` rather than a cookie, which also keeps this script
+outside the CSRF double-submit check (that check only applies to
+cookie-authenticated requests, matching how any non-browser API client behaves).
 """
 
+import itertools
+import os
+import sys
 import json
 from urllib.parse import quote
 from locust import HttpUser, task, between, events
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from auth import create_access_token  # noqa: E402
+
+_user_id_seq = itertools.count(900_000_001)
 
 
 # ── Seed data ──────────────────────────────────────────────────────────
@@ -62,20 +78,14 @@ class AuthenticatedUser(HttpUser):
     wait_time = between(2, 5)
 
     def on_start(self):
-        """Login and store token."""
-        resp = self.client.post(
-            "/api/auth/login",
-            json={"userid": "admin", "password": "12345"},
-            name="/api/auth/login",
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            self.user_data = data.get("user", {})
-            # Token is set as cookie by the server
-            self.is_logged_in = True
-        else:
-            self.is_logged_in = False
-            self.user_data = {}
+        """Mint a JWT locally for a synthetic user (no real login endpoint to
+        call — see module docstring) and send it as a Bearer token."""
+        user_id = next(_user_id_seq)
+        username = f"loadtest-{user_id}"
+        token = create_access_token(user_id, username)
+        self.client.headers["Authorization"] = f"Bearer {token}"
+        self.user_data = {"id": user_id, "username": username}
+        self.is_logged_in = True
 
     @task(8)
     def list_posts(self):

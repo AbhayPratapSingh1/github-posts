@@ -2,10 +2,13 @@ import os
 import time
 import re
 import json
+import logging
+import bleach
 import markdown as md
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
-from urllib.parse import urlparse, quote
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import Depends, FastAPI, Query, Request
@@ -19,14 +22,22 @@ from app.models import User, Post, Comment, Like, PostMedia, CommentLike, Feedba
 from auth import (
     create_access_token,
     create_refresh_token,
-    verify_credentials,
+    generate_csrf_token,
     get_user_from_request,
     refresh_access_token,
     require_user,
 )
 from config import APP_ENV, PORT, BACKEND_URL, FRONTEND_URL, CORS_ORIGINS, GEMINI_API_KEY, JWT_ACCESS_EXPIRY_MINUTES, JWT_REFRESH_EXPIRY_DAYS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, ADMIN_GITHUB_IDS, ADMIN_PASSWORD, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, MAX_IMAGE_SIZE_MB, MAX_VIDEO_SIZE_MB, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES
 
+logger = logging.getLogger("post_panel")
+
 app = FastAPI()
+
+if APP_ENV == "prod":
+    if os.getenv("JWT_SECRET", "dev-secret-change-me") == "dev-secret-change-me":
+        logger.warning("JWT_SECRET is using its insecure default value in a prod environment")
+    if os.getenv("ADMIN_PASSWORD", "admin123") == "admin123":
+        logger.warning("ADMIN_PASSWORD is using its insecure default value in a prod environment")
 
 
 @app.on_event("startup")
@@ -47,6 +58,79 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+CSRF_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+@app.middleware("http")
+async def csrf_protect(request: Request, call_next):
+    """Require a matching double-submit CSRF token for cookie-authenticated,
+    state-changing requests. Bearer-token (non-cookie) requests are unaffected
+    since a cross-site attacker can't set a custom Authorization header."""
+    if request.method not in CSRF_SAFE_METHODS and request.cookies.get("session"):
+        csrf_cookie = request.cookies.get("csrf_token")
+        csrf_header = request.headers.get("x-csrf-token")
+        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+            return JSONResponse(status_code=403, content={"error": "Missing or invalid CSRF token"})
+    return await call_next(request)
+
+
+_rate_limit_buckets: dict[str, list] = defaultdict(list)
+
+
+def check_rate_limit(key: str, max_requests: int, window_seconds: int) -> bool:
+    """Simple in-memory fixed-window limiter. Per-process only; fine for a
+    single backend instance, not a substitute for a shared limiter behind a
+    load balancer."""
+    now = time.time()
+    bucket = _rate_limit_buckets[key]
+    while bucket and now - bucket[0] > window_seconds:
+        bucket.pop(0)
+    if len(bucket) >= max_requests:
+        return False
+    bucket.append(now)
+    return True
+
+
+def client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def is_admin_user(user) -> bool:
+    return bool(user) and getattr(user, "github_id", None) in ADMIN_GITHUB_IDS
+
+
+def require_admin(request: Request, db: Session) -> Optional[User]:
+    """Returns the authenticated user if they're an admin, else None."""
+    user = get_user_from_request(request, db)
+    return user if is_admin_user(user) else None
+
+
+ALLOWED_HTML_TAGS = [
+    "p", "br", "div", "span", "strong", "b", "em", "i", "u", "s",
+    "h1", "h2", "h3", "h4", "ul", "ol", "li", "a", "img",
+    "blockquote", "code", "pre", "video", "source", "figure", "figcaption",
+]
+ALLOWED_HTML_ATTRS = {
+    "a": ["href", "title", "target", "rel"],
+    "img": ["src", "alt", "title", "width", "height"],
+    "video": ["src", "controls", "width", "height", "poster"],
+    "source": ["src", "type"],
+}
+ALLOWED_HTML_PROTOCOLS = ["http", "https", "mailto"]
+
+
+def sanitize_html(html: str) -> str:
+    if not html:
+        return html
+    return bleach.clean(
+        html,
+        tags=ALLOWED_HTML_TAGS,
+        attributes=ALLOWED_HTML_ATTRS,
+        protocols=ALLOWED_HTML_PROTOCOLS,
+        strip=True,
+    )
+
 
 @app.on_event("startup")
 def startup_db():
@@ -145,6 +229,17 @@ def set_session_cookie(response, token: str):
         max_age=JWT_ACCESS_EXPIRY_MINUTES * 60,
         path="/",
     )
+    # Double-submit CSRF token: readable by frontend JS (same-origin only),
+    # echoed back as a header on state-changing requests.
+    response.set_cookie(
+        key="csrf_token",
+        value=generate_csrf_token(),
+        httponly=False,
+        secure=APP_ENV == "prod",
+        samesite="none" if APP_ENV == "prod" else "lax",
+        max_age=JWT_ACCESS_EXPIRY_MINUTES * 60,
+        path="/",
+    )
 
 def set_refresh_cookie(response, token: str):
     response.set_cookie(
@@ -162,31 +257,6 @@ def testing():
     return {"data":"End point is working fine"}
 
 # ── Auth routes ──────────────────────────────────────────────────────
-
-class LoginRequest(BaseModel):
-    userid: str
-    password: str
-
-@app.post("/api/auth/login")
-def login(body: LoginRequest, db: Session = Depends(get_db)):
-    user = verify_credentials(body.userid, body.password)
-    if not user:
-        return JSONResponse(status_code=401, content={"error": "Invalid credentials"})
-    access = create_access_token(user.id, user.username)
-    refresh = create_refresh_token(user.id, user.username)
-    user_data = {"id": user.id, "username": user.username or f"user_{user.id}", "name": getattr(user, "name", "") or "", "avatar_url": user.avatar_url}
-    if hasattr(user, "github_id"):
-        user_data["github_id"] = user.github_id
-    if hasattr(user, "email"):
-        user_data["email"] = user.email
-    if hasattr(user, "bio"):
-        user_data["bio"] = user.bio
-    if hasattr(user, "created_at"):
-        user_data["created_at"] = user.created_at
-    response = JSONResponse({"success": True, "user": user_data})
-    set_session_cookie(response, access)
-    set_refresh_cookie(response, refresh)
-    return response
 
 @app.get("/api/auth/me")
 def get_me(request: Request, db: Session = Depends(get_db)):
@@ -209,9 +279,7 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         user_data["bio"] = user.bio
     if hasattr(user, "created_at"):
         user_data["created_at"] = user.created_at
-    user_data["is_admin"] = (
-        user.github_id in ADMIN_GITHUB_IDS if hasattr(user, "github_id") else False
-    )
+    user_data["is_admin"] = is_admin_user(user)
     return {"user": user_data}
 
 @app.post("/api/auth/logout")
@@ -327,23 +395,11 @@ async def github_callback(code: str = Query(...), state: str = Query("/"), db: S
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
 
-    user_data = {"id": user.id, "username": user.username or f"user_{user.id}", "avatar_url": getattr(user, "avatar_url", "")}
-    if hasattr(user, "name"):
-        user_data["name"] = getattr(user, "name", "") or ""
-    if hasattr(user, "github_id"):
-        user_data["github_id"] = user.github_id
-    if hasattr(user, "email"):
-        user_data["email"] = user.email
-    if hasattr(user, "bio"):
-        user_data["bio"] = user.bio
-    if hasattr(user, "created_at"):
-        user_data["created_at"] = user.created_at
-
-    # Pass tokens via URL too: cross-site cookies are unreliable when frontend/backend are on different domains (e.g. Vercel/Render)
-    user_json = quote(json.dumps(user_data))
-    sep = "&" if "?" in return_to else "?"
-    redirect_url = f"{FRONTEND_URL}{return_to}{sep}token={access}&refresh={refresh_token}&user={user_json}"
-    response = RedirectResponse(url=redirect_url)
+    # Tokens are never put in the URL (they'd leak into browser history, server
+    # logs, and Referer headers). The session is established purely via the
+    # httponly cookies set below; the frontend picks up the signed-in user via
+    # GET /api/auth/me on load.
+    response = RedirectResponse(url=f"{FRONTEND_URL}{return_to}")
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     return response
@@ -353,18 +409,12 @@ async def github_callback(code: str = Query(...), state: str = Query("/"), db: S
 @app.get("/api/admin/check")
 def admin_check(request: Request, db: Session = Depends(get_db)):
     user = get_user_from_request(request, db)
-    print(f"[DEBUG /admin/check] user={getattr(user, 'username', None)}, github_id={getattr(user, 'github_id', None)}")
-
     if not user:
-        print(f"[DEBUG /admin/check] No user found in token")
         return JSONResponse(status_code=401, content={"error": "Not authenticated"})
 
-    github_id = getattr(user, "github_id", None)
-    if github_id not in ADMIN_GITHUB_IDS:
-        print(f"[DEBUG /admin/check] github_id={github_id} NOT in admin list {ADMIN_GITHUB_IDS}")
+    if not is_admin_user(user):
         return JSONResponse(status_code=403, content={"error": "Not an admin account"})
 
-    print(f"[DEBUG /admin/check] Admin verified: {user.username} (github_id={github_id})")
     return JSONResponse(content={
         "success": True,
         "user": {
@@ -377,25 +427,23 @@ def admin_check(request: Request, db: Session = Depends(get_db)):
     })
 
 class AdminLoginRequest(BaseModel):
-    github_id: int
     password: str
 
 @app.post("/api/admin/login")
-def admin_login(body: AdminLoginRequest, db: Session = Depends(get_db)):
-    print(f"[DEBUG /admin/login] Login attempt for github_id={body.github_id}")
+def admin_login(body: AdminLoginRequest, request: Request, db: Session = Depends(get_db)):
+    if not check_rate_limit(f"admin_login:{client_ip(request)}", max_requests=5, window_seconds=300):
+        return JSONResponse(status_code=429, content={"error": "Too many attempts. Try again later."})
 
-    if body.password != ADMIN_PASSWORD:
-        print(f"[DEBUG /admin/login] Wrong password for github_id={body.github_id}")
-        return JSONResponse(status_code=401, content={"error": "Invalid password"})
-
-    if body.github_id not in ADMIN_GITHUB_IDS:
-        print(f"[DEBUG /admin/login] github_id={body.github_id} NOT in admin list")
+    # The password step is a second factor on top of an *already-authenticated*
+    # GitHub session — the target account is derived from that session, never
+    # from client-supplied input, so this can't be used to log in as an
+    # arbitrary admin github_id.
+    user = get_user_from_request(request, db)
+    if not is_admin_user(user):
         return JSONResponse(status_code=403, content={"error": "Not an admin account"})
 
-    user = db.query(User).filter(User.github_id == body.github_id).first()
-    if not user:
-        print(f"[DEBUG /admin/login] No DB user for github_id={body.github_id}")
-        return JSONResponse(status_code=404, content={"error": "Admin user not found"})
+    if body.password != ADMIN_PASSWORD:
+        return JSONResponse(status_code=401, content={"error": "Invalid password"})
 
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
@@ -409,16 +457,14 @@ def admin_login(body: AdminLoginRequest, db: Session = Depends(get_db)):
         "bio": getattr(user, "bio", ""),
         "is_admin": True,
     }
-    print(f"[DEBUG /admin/login] Success: {user.username} (github_id={user.github_id})")
-    response = JSONResponse({"success": True, "user": user_data, "token": access})
+    response = JSONResponse({"success": True, "user": user_data})
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     return response
 
 @app.get("/api/admin/dashboard")
 def admin_dashboard(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_request(request, db)
-    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+    if not require_admin(request, db):
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
     all_posts = db.query(Post).order_by(Post.created_at.desc().nullslast()).all()
@@ -480,8 +526,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
 @app.delete("/api/admin/posts/{id}")
 def admin_delete_post(id: str, request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_request(request, db)
-    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+    if not require_admin(request, db):
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
     post = postHandler.get_post_raw(id, db)
@@ -492,8 +537,7 @@ def admin_delete_post(id: str, request: Request, db: Session = Depends(get_db)):
 
 @app.delete("/api/admin/posts")
 def admin_delete_all_posts(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_request(request, db)
-    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+    if not require_admin(request, db):
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
     count = db.query(Post).count()
@@ -503,8 +547,7 @@ def admin_delete_all_posts(request: Request, db: Session = Depends(get_db)):
 
 @app.delete("/api/admin/users")
 def admin_delete_all_users(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_request(request, db)
-    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+    if not require_admin(request, db):
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
     count = db.query(User).count()
@@ -722,11 +765,7 @@ def delete_comment(
     if not comment:
         return JSONResponse(status_code=404, content={"error": "Comment not found"})
 
-    is_admin = (
-        user.github_id in ADMIN_GITHUB_IDS if hasattr(user, "github_id") else False
-    )
-
-    if is_admin:
+    if is_admin_user(user):
         comment.is_deleted = True
         comment.updated_at = datetime.now(timezone.utc)
         db.commit()
@@ -830,10 +869,8 @@ def like_post(
 
 @app.put("/api/admin/posts/{id}")
 async def admin_update_post(id: str, body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_request(request, db)
-    print(f"[DEBUG /admin/posts PUT] user={getattr(user, 'username', None)}, post_id={id}")
-    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
-        print(f"[DEBUG /admin/posts PUT] Not admin")
+    user = require_admin(request, db)
+    if not user:
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
     post = postHandler.get_post_raw(id, db)
@@ -842,6 +879,8 @@ async def admin_update_post(id: str, body: CreatePostRequest, request: Request, 
 
     data = body.model_dump(exclude_unset=True)
     data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    if data.get("description"):
+        data["description"] = sanitize_html(data["description"])
 
     # Never allow admin to change ownership fields
     data.pop("user_id", None)
@@ -862,7 +901,6 @@ async def admin_update_post(id: str, body: CreatePostRequest, request: Request, 
                     "openIssues": gh.get("open_issues_count", 0),
                 }
 
-    print(f"[DEBUG /admin/posts PUT] Updating post {id} (owner preserved)")
     updated = postHandler.update_post(id, db, data)
     return updated
 
@@ -1082,12 +1120,15 @@ Return ONLY valid JSON, no markdown fences. The description field must be plain 
 
     # Convert markdown description to HTML for Quill.js
     if "description" in result and result["description"]:
-        result["description"] = md.markdown(result["description"])
+        result["description"] = sanitize_html(md.markdown(result["description"]))
 
     return result
 
 @app.post('/api/github/generate')
 async def generatePostContent(request: Request, url: str = Query(..., description="GitHub repo URL"), db: Session = Depends(get_db)):
+    if not check_rate_limit(f"github_generate:{client_ip(request)}", max_requests=10, window_seconds=3600):
+        return JSONResponse(status_code=429, content={"error": "Too many requests. Please try again later."})
+
     owner, repo = parse_github_url(url)
     if not owner or not repo:
         return JSONResponse(
@@ -1119,9 +1160,10 @@ async def generatePostContent(request: Request, url: str = Query(..., descriptio
         generated = await generate_with_gemini(repo_data, readme)
         return generated
     except Exception as e:
+        logger.warning("generate_with_gemini failed: %s", e)
         return JSONResponse(
             status_code=500,
-            content={"error": f"Failed to generate content: {str(e)}"}
+            content={"error": "Failed to generate content. Please try again."}
         )
 
 @app.post('/api/posts')
@@ -1142,6 +1184,8 @@ async def createPost(body: CreatePostRequest, request: Request, db: Session = De
     now = datetime.now(timezone.utc).isoformat()
     data["created_at"] = now
     data["updated_at"] = now
+    if data.get("description"):
+        data["description"] = sanitize_html(data["description"])
 
     if body.github:
         owner, repo = parse_github_url(body.github)
@@ -1206,6 +1250,8 @@ async def updatePost(id, body: CreatePostRequest, request: Request, db: Session 
 
     data = body.model_dump(exclude_unset=True)
     data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    if data.get("description"):
+        data["description"] = sanitize_html(data["description"])
 
     if body.github:
         owner, repo = parse_github_url(body.github)
@@ -1349,11 +1395,19 @@ def confirm_media_upload(post_id: str, body: MediaConfirmRequest, request: Reque
     if not media:
         return JSONResponse(status_code=404, content={"error": "Media record not found"})
 
+    expected_prefix = f"https://res.cloudinary.com/{CLOUDINARY_CLOUD_NAME}/"
+    if not body.secureUrl.startswith(expected_prefix):
+        return JSONResponse(status_code=400, content={"error": "Invalid media URL"})
+    if body.resourceType not in ("image", "video"):
+        return JSONResponse(status_code=400, content={"error": "Invalid resource type"})
+    if not body.cloudinaryPublicId.startswith(f"posts/{post_id}/") and not body.cloudinaryPublicId.startswith(f"posts/{post_id}"):
+        return JSONResponse(status_code=400, content={"error": "Invalid media public ID"})
+
     media.status = "uploaded"
     media.cloudinary_public_id = body.cloudinaryPublicId
     media.cloudinary_resource_type = body.resourceType
     media.cloudinary_secure_url = body.secureUrl
-    media.cloudinary_url = body.secureUrl.replace("https://", "http://")
+    media.cloudinary_url = body.secureUrl
     media.updated_at = datetime.now(timezone.utc).isoformat()
     db.commit()
 
@@ -1474,8 +1528,7 @@ def get_my_feedback(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/api/admin/feedback")
 def admin_get_all_feedback(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_request(request, db)
-    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+    if not require_admin(request, db):
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
     feedbacks = (
@@ -1502,8 +1555,7 @@ def admin_get_all_feedback(request: Request, db: Session = Depends(get_db)):
 
 @app.delete("/api/admin/feedback/{feedback_id}")
 def admin_delete_feedback(feedback_id: int, request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_request(request, db)
-    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
+    if not require_admin(request, db):
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
     feedback = db.query(Feedback).filter(Feedback.id == feedback_id).first()

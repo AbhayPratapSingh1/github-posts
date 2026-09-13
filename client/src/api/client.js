@@ -5,26 +5,28 @@ export const API_BASE = config.apiBase
 let isRefreshing = false
 let refreshPromise = null
 
-function getToken() {
-  return localStorage.getItem("session_token") || localStorage.getItem("admin_token")
+export function getCsrfToken() {
+  const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+function withCsrfHeader(headers, method) {
+  const merged = { ...headers }
+  if (method && method !== "GET" && method !== "HEAD") {
+    const csrfToken = getCsrfToken()
+    if (csrfToken) merged["X-CSRF-Token"] = csrfToken
+  }
+  return merged
 }
 
 const refreshToken = async () => {
   try {
-    const token = getToken()
-    const headers = {}
-    if (token) headers["Authorization"] = `Bearer ${token}`
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
       credentials: "include",
-      headers,
+      headers: withCsrfHeader({}, "POST"),
     })
-    if (!res.ok) return false
-    const data = await res.json()
-    if (data.access_token) {
-      localStorage.setItem("session_token", data.access_token)
-    }
-    return true
+    return res.ok
   } catch {
     return false
   }
@@ -32,11 +34,7 @@ const refreshToken = async () => {
 
 export const request = async (path, options = {}) => {
   try {
-    const token = getToken()
-    const headers = { ...(options.headers || {}) }
-    if (token && !headers["Authorization"]) {
-      headers["Authorization"] = `Bearer ${token}`
-    }
+    const headers = withCsrfHeader(options.headers || {}, options.method)
     const res = await fetch(`${API_BASE}${path}`, {
       credentials: "include",
       ...options,
@@ -54,11 +52,7 @@ export const request = async (path, options = {}) => {
 
       await refreshPromise
 
-      const newToken = getToken()
-      const retryHeaders = { ...(options.headers || {}) }
-      if (newToken && !retryHeaders["Authorization"]) {
-        retryHeaders["Authorization"] = `Bearer ${newToken}`
-      }
+      const retryHeaders = withCsrfHeader(options.headers || {}, options.method)
       const retryRes = await fetch(`${API_BASE}${path}`, {
         credentials: "include",
         ...options,

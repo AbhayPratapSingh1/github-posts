@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { getPosts, getPostById, createPost, updatePost, deletePost, getGithubInfo, generatePostContent, likePost, getLikedPosts } from "../../api/posts.js"
-import { API_BASE } from "../../api/client.js"
 
 beforeEach(() => {
   localStorage.clear()
+  document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
   vi.restoreAllMocks()
 })
 
@@ -48,8 +48,8 @@ describe("getPostById", () => {
 })
 
 describe("createPost", () => {
-  it("sends POST with auth headers", async () => {
-    localStorage.setItem("session_token", "tok")
+  it("sends POST with cookie credentials and CSRF header", async () => {
+    document.cookie = "csrf_token=csrf-abc"
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ id: "new-post" }),
@@ -60,8 +60,9 @@ describe("createPost", () => {
       expect.any(String),
       expect.objectContaining({
         method: "POST",
+        credentials: "include",
         headers: expect.objectContaining({
-          Authorization: "Bearer tok",
+          "X-CSRF-Token": "csrf-abc",
           "Content-Type": "application/json",
         }),
       })
@@ -71,7 +72,6 @@ describe("createPost", () => {
 
 describe("updatePost", () => {
   it("sends PUT with correct id", async () => {
-    localStorage.setItem("session_token", "tok")
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ id: "updated" }),
@@ -85,7 +85,6 @@ describe("updatePost", () => {
 
 describe("deletePost", () => {
   it("sends DELETE request", async () => {
-    localStorage.setItem("session_token", "tok")
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ message: "deleted" }),
@@ -99,7 +98,6 @@ describe("deletePost", () => {
 
 describe("likePost", () => {
   it("sends explicit liked flag to /posts/:id/like", async () => {
-    localStorage.setItem("session_token", "tok")
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ liked: true, like_count: 1 }),
@@ -111,13 +109,11 @@ describe("likePost", () => {
     expect(fetch.mock.calls[0][0]).toContain("/posts/my-post/like")
     expect(fetch.mock.calls[0][1].method).toBe("POST")
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ liked: true })
-    expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer tok")
   })
 })
 
 describe("getLikedPosts", () => {
   it("fetches liked posts for the signed-in user", async () => {
-    localStorage.setItem("session_token", "tok")
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -130,7 +126,6 @@ describe("getLikedPosts", () => {
     expect(res.total).toBe(1)
     expect(res.posts[0].id).toBe("a")
     expect(fetch.mock.calls[0][0]).toContain("/posts/liked")
-    expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer tok")
   })
 })
 
@@ -175,9 +170,10 @@ describe("generatePostContent", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
+      statusText: "Internal Server Error",
       json: async () => ({ error: "Server error" }),
     }))
 
-    await expect(generatePostContent("https://github.com/user/repo")).rejects.toThrow("Server error")
+    await expect(generatePostContent("https://github.com/user/repo")).rejects.toThrow("500")
   })
 })

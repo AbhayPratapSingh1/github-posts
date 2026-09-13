@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { FaShieldAlt, FaSpinner, FaCheckCircle, FaExclamationTriangle } from "react-icons/fa"
-import { API_BASE } from "../api/client"
+import { API_BASE, getCsrfToken } from "../api/client"
 import Logo from "../components/Logo"
 
 function AdminLogin() {
@@ -13,20 +13,8 @@ function AdminLogin() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const adminToken = localStorage.getItem("admin_token")
-    if (adminToken) {
-      navigate("/admin/dashboard", { replace: true })
-      return
-    }
-
-    const sessionToken = localStorage.getItem("session_token")
-    if (!sessionToken) {
-      setStatus("not_logged_in")
-      return
-    }
-
     fetch(`${API_BASE}/admin/check`, {
-      headers: { Authorization: `Bearer ${sessionToken}` },
+      credentials: "include",
     })
       .then((res) => {
         if (res.status === 401) {
@@ -46,7 +34,7 @@ function AdminLogin() {
         }
       })
       .catch(() => setStatus("not_logged_in"))
-  }, [navigate])
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -54,13 +42,15 @@ function AdminLogin() {
     setLoading(true)
 
     try {
+      const csrfToken = getCsrfToken()
       const res = await fetch(`${API_BASE}/admin/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          github_id: verifiedUser.github_id,
-          password,
-        }),
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+        },
+        body: JSON.stringify({ password }),
       })
       const data = await res.json()
 
@@ -70,8 +60,6 @@ function AdminLogin() {
         return
       }
 
-      localStorage.setItem("admin_token", data.token)
-      localStorage.setItem("admin_user", JSON.stringify(data.user))
       navigate("/admin/dashboard", { replace: true })
     } catch {
       setError("Connection failed. Please try again.")

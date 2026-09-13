@@ -4,15 +4,17 @@ This document reverse-engineers the complete authentication and authorization sy
 
 ## Overview
 
-Post Panel uses a dual authentication system:
-1. **GitHub OAuth** for primary user authentication
-2. **Credential-based login** for admin access
-3. **JWT tokens** for session management
-4. **HTTP-only cookies + localStorage** for token storage
+Post Panel uses:
+1. **GitHub OAuth** for the only user login method
+2. **JWT tokens** for session management, carried exclusively in HTTP-only cookies
+3. **A password step** (`ADMIN_PASSWORD`) as a second factor on top of an already-authenticated admin GitHub session
+4. **A double-submit CSRF token** for cookie-authenticated, state-changing requests
+
+There is no password-based user login and no client-side (localStorage) token storage — both were removed as security fixes (see "Security Considerations" below).
 
 ## Authentication Methods
 
-### 1. GitHub OAuth (Primary)
+### 1. GitHub OAuth (the only login method)
 
 **Flow:**
 1. User clicks "Sign in with GitHub" on Login page
@@ -24,52 +26,37 @@ Post Panel uses a dual authentication system:
 7. Backend fetches user profile from GitHub API
 8. Backend creates/updates user in database
 9. Backend creates JWT tokens
-10. Backend sets HTTP-only cookies
-11. Backend redirects to frontend with tokens in URL
-12. Frontend parses tokens from URL
-13. Frontend stores tokens in localStorage
-14. Frontend updates auth state
+10. Backend sets HTTP-only `session`/`refresh_token` cookies and a readable `csrf_token` cookie
+11. Backend redirects to `${FRONTEND_URL}${returnTo}` — **no tokens or user data in the URL**
+12. Frontend calls `GET /api/auth/me` (cookie-authenticated) to pick up the signed-in user
 
 **Implementation:**
-- **Backend:** `github_login()` and `github_callback()` in `backend-fastapi/main.py:206-315`
-- **Frontend:** `AuthContext.jsx` useEffect on mount
+- **Backend:** `github_login()` and `github_callback()` in `backend-fastapi/main.py`
+- **Frontend:** `AuthContext.jsx` `checkAuth()`, called once on mount
 
 **GitHub Scopes:**
 - `user:email` - Access to user email
 
-**Token Exchange:**
-```python
-# Backend exchanges code for access token
-token_res = await client.post(
-    "https://github.com/login/oauth/access_token",
-    json={
-        "client_id": GITHUB_CLIENT_ID,
-        "client_secret": GITHUB_CLIENT_SECRET,
-        "code": code,
-    },
-    headers={"Accept": "application/json"},
-)
-```
-
-### 2. Credential-Based Login (Admin)
+### 2. Admin login (second factor, not a separate identity)
 
 **Flow:**
-1. User navigates to `/admin`
-2. User enters GitHub ID and password
-3. Frontend sends POST to `/api/admin/login`
-4. Backend verifies password against `ADMIN_PASSWORD`
-5. Backend verifies GitHub ID in `ADMIN_GITHUB_IDS`
-6. Backend creates JWT tokens
-7. Backend sets HTTP-only cookies
-8. Backend returns user data and access token
+1. User is already signed in via GitHub OAuth (has a valid `session` cookie).
+2. User navigates to `/admin`; frontend calls `GET /api/admin/check` (cookie-authenticated) to confirm their GitHub id is in `ADMIN_GITHUB_IDS`.
+3. If confirmed, the frontend shows a password prompt and POSTs `{ password }` to `/api/admin/login` (cookie-authenticated, no `github_id` in the body).
+4. Backend re-derives the user from the session cookie itself (`get_user_from_request`), checks `is_admin_user(user)`, and only then checks `body.password == ADMIN_PASSWORD`.
+5. Backend re-issues session/refresh/csrf cookies.
+
+This means `ADMIN_PASSWORD` can never be used to authenticate as an arbitrary `github_id` supplied by the client — the target account is always the one already proven via the GitHub session. `/api/admin/login` is also rate-limited (5 attempts / 5 minutes per IP).
 
 **Implementation:**
-- **Backend:** `admin_login()` in `backend-fastapi/main.py:349-382`
-- **Frontend:** `AuthContext.login()` in `client/src/context/AuthContext.jsx:91-110`
+- **Backend:** `admin_check()` and `admin_login()` in `backend-fastapi/main.py`
+- **Frontend:** `client/src/pages/AdminLogin.jsx`
 
 **Credentials:**
-- **Password:** `ADMIN_PASSWORD` environment variable (default: `admin123`)
+- **Password:** `ADMIN_PASSWORD` environment variable (default `admin123` — **must** be overridden in prod; a startup warning is logged if it isn't)
 - **GitHub IDs:** `ADMIN_GITHUB_IDS` environment variable (comma-separated)
+
+Note: every `/api/admin/*` resource endpoint (dashboard, delete post/user/feedback, etc.) independently re-checks `github_id in ADMIN_GITHUB_IDS` via the shared `require_admin()`/`is_admin_user()` helpers in `main.py` — the password step is a UX gate on `/admin`, not something the other admin endpoints depend on.
 
 ## Token System
 
@@ -98,16 +85,15 @@ token_res = await client.post(
 ### Token Configuration
 
 **Backend:** `backend-fastapi/config.py`
-- `JWT_SECRET`: Secret key for signing (default: `dev-secret-change-me`)
+- `JWT_SECRET`: Secret key for signing (default: `dev-secret-change-me` — a startup warning is logged if this default is used in prod)
 - `JWT_ALGORITHM`: Signing algorithm (default: `HS256`)
 - `JWT_ACCESS_EXPIRY_MINUTES`: Access token lifetime (default: 15 minutes)
 - `JWT_REFRESH_EXPIRY_DAYS`: Refresh token lifetime (default: 30 days)
 
 ### Token Storage
 
-**Backend (HTTP-only cookies):**
+**Backend (HTTP-only cookies — the only place tokens live):**
 ```python
-# Access token cookie
 response.set_cookie(
     key="session",
     value=token,
@@ -117,8 +103,6 @@ response.set_cookie(
     max_age=JWT_ACCESS_EXPIRY_MINUTES * 60,
     path="/",
 )
-
-# Refresh token cookie
 response.set_cookie(
     key="refresh_token",
     value=token,
@@ -128,111 +112,56 @@ response.set_cookie(
     max_age=JWT_REFRESH_EXPIRY_DAYS * 24 * 60 * 60,
     path="/",
 )
+# Non-httponly, readable by frontend JS to echo back as a CSRF header:
+response.set_cookie(key="csrf_token", value=generate_csrf_token(), httponly=False, ...)
 ```
 
-**Frontend (localStorage):**
-```javascript
-// Access token
-localStorage.setItem("session_token", token)
-
-// Refresh token
-localStorage.setItem("refresh_token", token)
-
-// Admin token (alternative)
-localStorage.setItem("admin_token", token)
-```
+There is no frontend localStorage token storage. `client/src/api/client.js`'s `request()` always sends `credentials: "include"` and reads `csrf_token` from `document.cookie` to attach an `X-CSRF-Token` header on non-GET requests. A `Bearer <access token>` `Authorization` header is still accepted by the backend (`get_user_from_request` checks it as a fallback after the cookie) for non-browser API clients and tests — this path is exempt from CSRF checks since a cross-site page can't set a custom header on the victim's behalf.
 
 ### Token Validation
 
-**Backend:** `auth.py:65-90`
+**Backend:** `auth.py` `get_user_from_request()`
 ```python
 def get_user_from_request(request: Request, db: Optional[Session]) -> Optional[User]:
     # 1. Check cookie
     token = request.cookies.get("session")
-    
-    # 2. Check Authorization header
+
+    # 2. Check Authorization header (Bearer) as a fallback
     if not token:
         auth_header = request.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
-    
+
     # 3. Decode and validate
     payload = decode_token(token)
     if not payload or payload.get("type") != "access":
         return None
-    
-    # 4. Look up user
+
+    # 4. Look up the real user in the DB
     user_id = int(payload.get("sub", 0))
     user = db.query(User).filter(User.id == user_id).first()
-    
-    # 5. Fallback for hardcoded admin
-    if not user and payload.get("username") == "admin":
-        return ADMIN_USER
-    
-    return user
-```
+    if user:
+        return user
 
-**Frontend:** `api/client.js:33-76`
-```javascript
-export const request = async (path, options = {}) => {
-  const token = getToken()
-  
-  // Add token to headers
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`
-  }
-  
-  // Make request
-  const res = await fetch(`${API_BASE}${path}`, { ... })
-  
-  // Handle 401 - refresh and retry
-  if (res.status === 401 && !path.includes("/auth/")) {
-    await refreshToken()
-    // Retry original request
-  }
-}
+    # 5. Fallback: a lightweight _SimpleUser for a GitHub id not yet in the DB
+    return _SimpleUser(id=user_id, username=payload.get("username", ""))
 ```
+There is no hardcoded admin fallback — that was a backdoor (see "Security Considerations") and has been removed.
 
 ## Token Refresh Flow
 
-### Backend Refresh
-
 **Endpoint:** `POST /api/auth/refresh`
-**Implementation:** `backend-fastapi/main.py:191-204`
 
 1. Read refresh token from `refresh_token` cookie
-2. Validate refresh token (decode, check type)
-3. Look up user in database
-4. Create new access token
-5. Set new `session` cookie
-6. Return success response
+2. Validate refresh token (decode, check type, look up the real DB user — no fallback identity)
+3. Create new access token, re-set `session` and `csrf_token` cookies
+4. Return success response
 
-### Frontend Refresh
+**Frontend (`api/client.js`):** on a 401 from any non-`/auth/*` request, calls `POST /auth/refresh` (cookie-based, single-flight) and retries the original request once.
 
-**Implementation:** `api/client.js:12-31`
+## CSRF Protection
 
-1. On 401 response, call `refreshToken()`
-2. Send POST to `/api/auth/refresh` with current token
-3. If successful, update `session_token` in localStorage
-4. Retry original request with new token
-
-**Single-flight refresh:**
-```javascript
-let isRefreshing = false
-let refreshPromise = null
-
-if (res.status === 401) {
-  if (!isRefreshing) {
-    isRefreshing = true
-    refreshPromise = refreshToken().finally(() => {
-      isRefreshing = false
-      refreshPromise = null
-    })
-  }
-  await refreshPromise
-  // Retry request
-}
-```
+A `csrf_protect` Starlette middleware in `main.py` rejects any non-safe-method request (`POST`/`PUT`/`DELETE`/`PATCH`) that carries a `session` cookie but no matching `X-CSRF-Token` header (double-submit pattern: the header must equal the `csrf_token` cookie value). Requests authenticated purely via `Authorization: Bearer` (no `session` cookie) are unaffected, since CSRF requires ambient browser-supplied credentials.
 
 ## Authorization System
 
@@ -241,7 +170,7 @@ if (res.status === 401) {
 **Roles:**
 1. **Anonymous:** Unauthenticated user
 2. **User:** Authenticated GitHub user
-3. **Admin:** User with GitHub ID in `ADMIN_GITHUB_IDS`
+3. **Admin:** User with GitHub ID in `ADMIN_GITHUB_IDS`, verified via `is_admin_user()` / `require_admin()` in `main.py`
 
 ### Permission Matrix
 
@@ -271,127 +200,17 @@ user = require_user(request, db)  # Raises 401 if not authenticated
 if post.user_id != user.id:
     return JSONResponse(status_code=403, content={"error": "Not authorized"})
 
-# Check admin
-if user.github_id not in ADMIN_GITHUB_IDS:
+# Check admin (centralized helper, used by every /api/admin/* route)
+if not require_admin(request, db):
     return JSONResponse(status_code=403, content={"error": "Admin access required"})
 ```
 
 **Frontend:**
 ```jsx
-// Protected route component
+// Protected route component — requires a signed-in user (cookie session)
 <ProtectedRoute>
   <CreatePost />
 </ProtectedRoute>
-
-// ProtectedRoute checks:
-// - admin_token exists, OR
-// - session_token exists and user is authenticated
-```
-
-## Authentication Flows
-
-### Signup Flow (GitHub OAuth)
-
-```
-User clicks "Sign in with GitHub"
-  ↓
-Frontend: window.location = `${API_BASE}/auth/github`
-  ↓
-Backend: Redirect to GitHub OAuth
-  ↓
-GitHub: User authorizes
-  ↓
-Backend: /api/auth/github/callback
-  ↓
-Backend: Exchange code for access token
-  ↓
-Backend: Fetch user profile from GitHub API
-  ↓
-Backend: Create/Update User in database
-  ↓
-Backend: Create JWT tokens
-  ↓
-Backend: Set HTTP-only cookies
-  ↓
-Backend: Redirect to FRONTEND_URL?token=...&refresh=...&user=...
-  ↓
-Frontend: Parse tokens from URL
-  ↓
-Frontend: Store in localStorage
-  ↓
-Frontend: Update AuthContext state
-  ↓
-Frontend: Clear URL parameters
-```
-
-### Signin Flow (Admin)
-
-```
-User navigates to /admin
-  ↓
-User enters GitHub ID and password
-  ↓
-Frontend: POST /api/admin/login
-  ↓
-Backend: Verify password
-  ↓
-Backend: Verify GitHub ID in ADMIN_GITHUB_IDS
-  ↓
-Backend: Look up user in database
-  ↓
-Backend: Create JWT tokens
-  ↓
-Backend: Set HTTP-only cookies
-  ↓
-Backend: Return user data and access token
-  ↓
-Frontend: Store token in localStorage
-  ↓
-Frontend: Update AuthContext state
-  ↓
-Frontend: Redirect to /admin/dashboard
-```
-
-### Signout Flow
-
-```
-User clicks "Sign out"
-  ↓
-Frontend: AuthContext.logout()
-  ↓
-Frontend: POST /api/auth/logout
-  ↓
-Backend: Delete session cookies
-  ↓
-Frontend: Clear localStorage
-  ↓
-Frontend: Set user to null
-  ↓
-Frontend: Redirect to home
-```
-
-### Session Restoration Flow
-
-```
-Frontend mounts
-  ↓
-AuthContext useEffect runs
-  ↓
-Check URL for OAuth tokens
-  ↓
-If tokens present:
-  Parse and store tokens
-  Clear URL parameters
-  Set user state
-Else:
-  Call checkAuth()
-    ↓
-  GET /api/auth/me
-    ↓
-  If valid user:
-    Set user state
-  Else:
-    Clear auth state
 ```
 
 ## Protected Routes
@@ -400,55 +219,33 @@ Else:
 
 **Component:** `client/src/components/ProtectedRoute.jsx`
 
-**Logic:**
-1. Check if `admin_token` exists in localStorage
-2. If not, check if `session_token` exists
-3. If neither, redirect to `/login`
-4. If token exists, render children
-
-**Usage:**
-```jsx
-<Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
-<Route path="/post/:id/edit" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
-```
+**Logic:** redirect to `/login` unless `useAuth().user` is set (i.e. `GET /api/auth/me` returned a user via the cookie session). No localStorage involved.
 
 ### Backend Protection
 
-**Dependency:** `require_user()` in `auth.py:109-113`
+**Dependency:** `require_user()` in `auth.py`
 
 **Logic:**
-1. Extract user from request (cookie or header)
+1. Extract user from request (cookie, or `Authorization: Bearer` fallback)
 2. If no user, raise HTTPException 401
 3. Return user object
-
-**Usage:**
-```python
-@app.post('/api/posts')
-async def createPost(body: CreatePostRequest, request: Request, db: Session = Depends(get_db)):
-    user = require_user(request, db)  # Raises 401 if not authenticated
-    # ... create post
-```
 
 ## Ownership Verification
 
 ### Post Ownership
 
-**Backend:** `main.py:887-904`
 ```python
 @app.delete('/api/posts/{id}')
 def deletePost(id, request: Request, db: Session = Depends(get_db)):
     user = require_user(request, db)
     post = postHandler.get_post_raw(id, db)
-    
     if post.user_id != user.id:
         return JSONResponse(status_code=403, content={"error": "Not authorized"})
-    
     postHandler.delete_post(id, db)
 ```
 
 ### GitHub Repository Ownership
 
-**Backend:** `main.py:861-871`
 ```python
 if body.github:
     owner, repo = parse_github_url(body.github)
@@ -466,92 +263,41 @@ if body.github:
 
 **Configuration:**
 - `ADMIN_GITHUB_IDS`: Comma-separated list of GitHub IDs (e.g., `"47173091"`)
-- `ADMIN_PASSWORD`: Password for admin login (e.g., `"admin123"`)
+- `ADMIN_PASSWORD`: Second-factor password for the `/admin` UI (e.g., `"admin123"` in dev — override in prod)
 
-**Check:** `user.github_id in ADMIN_GITHUB_IDS`
-
-### Admin Endpoints
-
-All admin endpoints verify:
-1. User is authenticated
-2. User's GitHub ID is in `ADMIN_GITHUB_IDS`
-
-**Implementation:**
-```python
-@app.get("/api/admin/dashboard")
-def admin_dashboard(request: Request, db: Session = Depends(get_db)):
-    user = get_user_from_request(request, db)
-    if not user or not hasattr(user, "github_id") or user.github_id not in ADMIN_GITHUB_IDS:
-        return JSONResponse(status_code=403, content={"error": "Admin access required"})
-    # ... return dashboard data
-```
+**Check:** `is_admin_user(user)` → `user.github_id in ADMIN_GITHUB_IDS`, centralized in `main.py` and used by every admin route.
 
 ## Security Considerations
 
-### Token Security
+### Fixed vulnerabilities (previously present, now removed)
 
-**HTTP-only cookies:**
-- Prevent XSS attacks from stealing tokens
-- Cannot be accessed via JavaScript
-- Sent automatically with requests
+1. **Hardcoded backdoor login:** `POST /api/auth/login` used to accept `{"userid": "admin", "password": "12345"}` unconditionally in every environment, minting a token for user id `1` — a full account-takeover backdoor if any real user had database id 1. **The endpoint has been removed entirely** (GitHub OAuth is the only login path).
+2. **Admin login was a shared static password, not identity-bound:** `POST /api/admin/login` used to accept any client-supplied `github_id` + `ADMIN_PASSWORD`, with no proof the caller controlled that GitHub account. **Fixed:** the target user is now always derived from the caller's own authenticated session.
+3. **Tokens in the OAuth redirect URL:** tokens and user JSON used to be appended to the post-login redirect URL, leaking into browser history/logs/referrers. **Fixed:** the redirect now carries no sensitive data; the frontend picks up the session via `GET /api/auth/me`.
+4. **localStorage token storage:** access/refresh/admin tokens used to be stored in `localStorage`, readable by any injected script. **Fixed:** cookies (httponly) are the only storage; `localStorage` is no longer used for auth.
+5. **No CSRF protection:** **Fixed** via the double-submit `csrf_token` cookie + `X-CSRF-Token` header, enforced by middleware for cookie-authenticated mutations.
+6. **No rate limiting on login-type endpoints:** **Fixed** with a simple in-memory per-IP limiter on `/api/admin/login` and `/api/github/generate` (see `check_rate_limit()` in `main.py`). Note this limiter is per-process — fine for a single backend instance, not a substitute for a shared limiter behind multiple instances/a load balancer.
 
-**Secure flag:**
-- Enabled in production (`APP_ENV == "prod"`)
-- Prevents HTTP transmission
+### Remaining considerations
 
-**SameSite:**
-- `none` in production (cross-origin)
-- `lax` in development
-
-### Potential Vulnerabilities
-
-1. **Tokens in URL:** OAuth flow returns tokens in URL query parameters
-   - **Mitigation:** Frontend removes tokens from URL immediately
-   - **Risk:** Tokens may be logged in browser history or server logs
-
-2. **localStorage:** Tokens stored in localStorage
-   - **Risk:** XSS attacks can access localStorage
-   - **Mitigation:** HTTP-only cookies as primary storage
-
-3. **Hardcoded credentials:** Default admin password in config
-   - **Risk:** Default credentials in production
-   - **Mitigation:** Environment variable override
-
-4. **JWT secret:** Default secret in config
-   - **Risk:** predictable tokens
-   - **Mitigation:** Environment variable override
-
-### Recommendations
-
-1. Use secure, random JWT secret in production
-2. Use strong admin password in production
-3. Consider implementing CSRF protection
-4. Add rate limiting to auth endpoints
-5. Implement token rotation for refresh tokens
-6. Add audit logging for auth events
+- `ADMIN_PASSWORD` and `JWT_SECRET` still ship with weak defaults for local dev convenience; a startup warning fires if either default survives into `APP_ENV=prod`, but nothing prevents actually running with them. Set both explicitly in any real deployment.
+- The rate limiter is in-memory and per-process; a horizontally-scaled deployment would need a shared store (e.g. Redis) for it to be effective across instances.
 
 ## Session Management
 
 ### Session Lifecycle
 
-1. **Creation:** On login (GitHub OAuth or admin credentials)
-2. **Validation:** On each request (cookie/header check)
+1. **Creation:** On login (GitHub OAuth), or admin password step (re-issues cookies for the same identity)
+2. **Validation:** On each request (cookie, or Bearer header fallback)
 3. **Refresh:** On 401 response (frontend) or explicit refresh
 4. **Expiration:** After JWT expiry (15 min access, 30 days refresh)
-5. **Destruction:** On logout (cookie deletion)
+5. **Destruction:** On logout (cookie deletion via `POST /api/auth/logout`)
 
 ### Session Storage
 
-**Backend:**
-- No server-side session storage
-- Stateless JWT validation
-- Database lookup for user data
+**Backend:** No server-side session storage; stateless JWT validation, DB lookup for user data.
 
-**Frontend:**
-- `session_token` in localStorage (access token)
-- `refresh_token` in localStorage (refresh token)
-- `admin_token` in localStorage (admin alternative)
-- `user` in localStorage (cached user data)
+**Frontend:** No token storage at all — the browser's cookie jar (httponly `session`/`refresh_token`, readable `csrf_token`) is the only persistence; `user` is kept in React state only, re-fetched via `/api/auth/me` on load.
 
 ## Testing Authentication
 
@@ -560,20 +306,21 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 **Location:** `backend-fastapi/tests/`
 
 **Fixtures:**
-- `auth_headers`: Valid authentication headers
-- `other_auth_headers`: Headers for different user
+- `auth_headers`: Valid `Authorization: Bearer` headers
+- `other_auth_headers`: Headers for a different user
 - `create_test_user`: Factory for test users
 - `create_test_post`: Factory for test posts
 
 **Test Cases:**
-- `test_auth.py`: Login/logout flows
-- `test_auth_me.py`: Token validation
+- `test_auth.py`: Logout
+- `test_auth_me.py`: Token validation, refresh
 - `test_posts.py`: Ownership verification
+- `test_security.py`: Backdoor removal, identity-bound admin login, CSRF enforcement, stored-XSS sanitization
 
 ### Frontend Tests
 
 **Location:** `client/src/tests/`
 
 **Test Cases:**
-- `AuthContext.test.jsx`: OAuth callback parsing, token storage
-- `client.test.js`: Token refresh logic
+- `AuthContext.test.jsx`: session pickup via `/auth/me`, logout
+- `client.test.js`: CSRF header attachment, token refresh retry logic

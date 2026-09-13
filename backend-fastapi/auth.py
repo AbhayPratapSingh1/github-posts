@@ -1,3 +1,4 @@
+import secrets
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 
@@ -46,20 +47,9 @@ class _SimpleUser:
         self.bio = bio
         self.created_at = created_at
 
-# Hardcoded admin — used when DB has no matching row
-ADMIN_USER = _SimpleUser(
-    id=1,
-    username="admin",
-    email="admin@postpanel.local",
-    bio="Administrator of Post Panel",
-    created_at="2026-01-01T00:00:00Z",
-)
 
-
-def verify_credentials(userid: str, password: str) -> Optional[_SimpleUser]:
-    if userid == "admin" and password == "12345":
-        return ADMIN_USER
-    return None
+def generate_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def get_user_from_request(request: Request, db: Optional[Session]) -> Optional[User]:
@@ -80,9 +70,6 @@ def get_user_from_request(request: Request, db: Optional[Session]) -> Optional[U
         user = db.query(User).filter(User.id == user_id).first()
         if user:
             return user
-    # Fallback: hardcoded admin not in DB
-    if payload.get("username") == "admin":
-        return ADMIN_USER
     # Fallback: return _SimpleUser for any GitHub user
     return _SimpleUser(
         id=user_id,
@@ -96,13 +83,10 @@ def refresh_access_token(refresh_token: str, db: Optional[Session]) -> Optional[
     if not payload or payload.get("type") != "refresh":
         return None
     user_id = int(payload.get("sub", 0))
-    username = payload.get("username", "")
     if db is not None:
         user = db.query(User).filter(User.id == user_id).first()
         if user:
             return create_access_token(user.id, user.username)
-    if username == "admin":
-        return create_access_token(ADMIN_USER.id, ADMIN_USER.username)
     return None
 
 

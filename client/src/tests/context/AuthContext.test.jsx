@@ -61,20 +61,16 @@ describe("AuthContext", () => {
     })
   })
 
-  it("handles OAuth callback with token in URL", async () => {
-    const userData = { id: 1, username: "bob", github_id: 456 }
-    window.history.replaceState(
-      {},
-      "",
-      `/?token=test-token&refresh=refresh-token&user=${encodeURIComponent(JSON.stringify(userData))}`
-    )
+  it("picks up the session via /auth/me after OAuth redirect (no tokens in URL)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ user: { id: 1, username: "bob", github_id: 456 } }),
+    }))
 
     renderWithProviders(<TestComponent />)
     await waitFor(() => {
       expect(screen.getByText("User: bob")).toBeInTheDocument()
     })
-    expect(localStorage.getItem("session_token")).toBe("test-token")
-    expect(window.location.search).toBe("")
   })
 
   it("calls /auth/me on mount", async () => {

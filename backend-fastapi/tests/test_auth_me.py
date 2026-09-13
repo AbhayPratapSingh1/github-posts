@@ -53,7 +53,8 @@ class TestAuthMe:
 
 class TestAuthRefresh:
     def test_refresh_returns_new_access_token(self, client, db):
-        token = create_refresh_token(1, "admin")
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_refresh_token(user.id, user.username)
         resp = client.post(
             "/api/auth/refresh",
             cookies={"refresh_token": token},
@@ -63,7 +64,8 @@ class TestAuthRefresh:
         assert "session" in resp.cookies
 
     def test_refresh_rejects_access_token(self, client, db):
-        token = create_access_token(1, "admin")
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(user.id, user.username)
         resp = client.post(
             "/api/auth/refresh",
             cookies={"refresh_token": token},
