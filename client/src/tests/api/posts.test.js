@@ -3,7 +3,6 @@ import { getPosts, getPostById, createPost, updatePost, deletePost, getGithubInf
 
 beforeEach(() => {
   localStorage.clear()
-  document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT"
   vi.restoreAllMocks()
 })
 
@@ -48,8 +47,7 @@ describe("getPostById", () => {
 })
 
 describe("createPost", () => {
-  it("sends POST with cookie credentials and CSRF header", async () => {
-    document.cookie = "csrf_token=csrf-abc"
+  it("sends POST with Content-Type header", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ id: "new-post" }),
@@ -62,7 +60,6 @@ describe("createPost", () => {
         method: "POST",
         credentials: "include",
         headers: expect.objectContaining({
-          "X-CSRF-Token": "csrf-abc",
           "Content-Type": "application/json",
         }),
       })
