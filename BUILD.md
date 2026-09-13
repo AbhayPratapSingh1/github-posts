@@ -169,6 +169,13 @@ A chronological log of how this project is being built. Each entry describes the
 - Gallery images support drag-and-drop reordering with visual ring feedback on drag-over. Grip icon shown on hover. Up/down buttons retained as alternative.
 - In +N mode, grid shows only `cols` images; "All images" table below supports drag-and-drop reordering.
 
+## 28. Rollback token storage to localStorage
+- **Revert:** Replaced cookie-only auth with localStorage-based token storage to fix cross-origin cookie issues.
+- Restored `getToken()`, `setToken()`, `clearAuth()` helpers in `AuthContext.jsx` and `client.js`.
+- Admin login/dashboard now store `admin_token` in localStorage and send via `Authorization` header.
+- `ProtectedRoute` and `Comments` check `localStorage.getItem("admin_token")` for admin detection.
+- URL-based token callback (`?token=...&user=...`) restored in `AuthProvider`.
+
 ---
 
 ## Current stack

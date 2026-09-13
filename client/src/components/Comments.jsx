@@ -325,7 +325,7 @@ function CommentsSection({
   const { addToast } = useToast()
   const location = useLocation()
 
-  const isAdmin = Boolean(user?.is_admin)
+  const isAdmin = Boolean(user?.is_admin) || Boolean(localStorage.getItem("admin_token"))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
