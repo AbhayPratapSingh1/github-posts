@@ -54,13 +54,14 @@ function AdminLogin() {
     setLoading(true)
 
     try {
+      const sessionToken = localStorage.getItem("session_token")
       const res = await fetch(`${API_BASE}/admin/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          github_id: verifiedUser.github_id,
-          password,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+        body: JSON.stringify({ password }),
       })
       const data = await res.json()
 

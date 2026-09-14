@@ -60,8 +60,10 @@ class TestAdminLoginIdentityBound:
         )
         assert resp.status_code == 200
         assert resp.json()["user"]["is_admin"] is True
-        # No bearer token is echoed back in the body anymore (cookie-only).
-        assert "token" not in resp.json()
+        # Bearer token is echoed back in the body for cross-origin clients
+        # (Vercel frontend / Render backend), which can't rely on cookies
+        # alone; the frontend stores it and sends it as an Authorization header.
+        assert resp.json()["token"]
 
 
 class TestCSRFProtection:

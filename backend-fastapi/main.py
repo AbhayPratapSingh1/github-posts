@@ -8,7 +8,7 @@ import markdown as md
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 
 import httpx
 from fastapi import Depends, FastAPI, Query, Request
@@ -300,7 +300,7 @@ def refresh(request: Request, db: Session = Depends(get_db)):
         new_access = None
     if not new_access:
         return JSONResponse(status_code=401, content={"error": "Invalid refresh token"})
-    response = JSONResponse({"success": True})
+    response = JSONResponse({"success": True, "access_token": new_access})
     set_session_cookie(response, new_access)
     return response
 
@@ -395,11 +395,27 @@ async def github_callback(code: str = Query(...), state: str = Query("/"), db: S
     access = create_access_token(user.id, user.username)
     refresh_token = create_refresh_token(user.id, user.username)
 
-    # Tokens are never put in the URL (they'd leak into browser history, server
-    # logs, and Referer headers). The session is established purely via the
-    # httponly cookies set below; the frontend picks up the signed-in user via
-    # GET /api/auth/me on load.
-    response = RedirectResponse(url=f"{FRONTEND_URL}{return_to}")
+    user_data = {
+        "id": user.id,
+        "username": user.username or f"user_{user.id}",
+        "name": getattr(user, "name", "") or "",
+        "avatar_url": user.avatar_url,
+        "github_id": user.github_id if hasattr(user, "github_id") else None,
+        "email": getattr(user, "email", ""),
+        "bio": getattr(user, "bio", ""),
+        "is_admin": is_admin_user(user),
+    }
+
+    # Cross-site cookies (Render backend / Vercel frontend, different
+    # registrable domains) are unreliable across browsers, so the token is
+    # also passed via the redirect URL for the frontend to store and send as
+    # an Authorization header. Cookies are still set as a secondary path.
+    params = urlencode({
+        "token": access,
+        "refresh": refresh_token,
+        "user": json.dumps(user_data),
+    })
+    response = RedirectResponse(url=f"{FRONTEND_URL}{return_to}?{params}")
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     return response
@@ -457,7 +473,7 @@ def admin_login(body: AdminLoginRequest, request: Request, db: Session = Depends
         "bio": getattr(user, "bio", ""),
         "is_admin": True,
     }
-    response = JSONResponse({"success": True, "user": user_data})
+    response = JSONResponse({"success": True, "user": user_data, "token": access})
     set_session_cookie(response, access)
     set_refresh_cookie(response, refresh_token)
     return response
