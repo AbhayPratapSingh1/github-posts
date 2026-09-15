@@ -195,6 +195,16 @@ def parse_github_url(url: str):
 _github_cache: dict[str, tuple[float, dict]] = {}
 GITHUB_CACHE_TTL = 3600  # 1 hour
 
+class GithubRateLimitedError(Exception):
+    """Raised when the GitHub API itself rate-limits our request."""
+    pass
+
+class GithubApiError(Exception):
+    """Raised for unexpected non-200/404 responses from the GitHub API."""
+    def __init__(self, status_code: int):
+        self.status_code = status_code
+        super().__init__(f"GitHub API returned {status_code}")
+
 async def fetch_github_repo(owner: str, repo: str, user_token: str = None):
     cache_key = f"{owner}/{repo}"
     now = time.time()
@@ -217,7 +227,11 @@ async def fetch_github_repo(owner: str, repo: str, user_token: str = None):
             data = resp.json()
             _github_cache[cache_key] = (now, data)
             return data
-    return None
+        if resp.status_code == 404:
+            return None
+        if resp.status_code in (403, 429) or resp.headers.get("X-RateLimit-Remaining") == "0":
+            raise GithubRateLimitedError()
+        raise GithubApiError(resp.status_code)
 
 def set_session_cookie(response, token: str):
     response.set_cookie(
@@ -998,6 +1012,9 @@ def getPostById(id, request: Request, db: Session = Depends(get_db)):
 
 @app.get('/api/github/info')
 async def getGithubInfo(request: Request, url: str = Query(..., description="GitHub repo URL"), db: Session = Depends(get_db)):
+    if not check_rate_limit(f"github_info:{client_ip(request)}", max_requests=20, window_seconds=3600):
+        return JSONResponse(status_code=429, content={"error": "Too many requests. Please try again later."})
+
     owner, repo = parse_github_url(url)
     if not owner or not repo:
         return JSONResponse(
@@ -1006,11 +1023,23 @@ async def getGithubInfo(request: Request, url: str = Query(..., description="Git
         )
     user = get_user_from_request(request, db)
     user_token = getattr(user, "github_token", None) if user else None
-    data = await fetch_github_repo(owner, repo, user_token)
+    try:
+        data = await fetch_github_repo(owner, repo, user_token)
+    except GithubRateLimitedError:
+        return JSONResponse(
+            status_code=429,
+            content={"error": "GitHub API rate limit exceeded. Try again later, or log in to increase your rate limit."}
+        )
+    except GithubApiError as e:
+        logger.warning("GitHub API error %s for %s/%s", e.status_code, owner, repo)
+        return JSONResponse(
+            status_code=502,
+            content={"error": "GitHub API error. Please try again later."}
+        )
     if not data:
         return JSONResponse(
             status_code=404,
-            content={"error": "Repository not found or rate-limited. If rate-limited, try logging out and back in to refresh your GitHub token."}
+            content={"error": "Repository not found"}
         )
     return {
         "language": data.get("language"),
@@ -1160,7 +1189,19 @@ async def generatePostContent(request: Request, url: str = Query(..., descriptio
 
     user = get_user_from_request(request, db)
     user_token = getattr(user, "github_token", None) if user else None
-    repo_data = await fetch_github_repo(owner, repo, user_token)
+    try:
+        repo_data = await fetch_github_repo(owner, repo, user_token)
+    except GithubRateLimitedError:
+        return JSONResponse(
+            status_code=429,
+            content={"error": "GitHub API rate limit exceeded. Try again later, or log in to increase your rate limit."}
+        )
+    except GithubApiError as e:
+        logger.warning("GitHub API error %s for %s/%s", e.status_code, owner, repo)
+        return JSONResponse(
+            status_code=502,
+            content={"error": "GitHub API error. Please try again later."}
+        )
     if not repo_data:
         return JSONResponse(
             status_code=404,

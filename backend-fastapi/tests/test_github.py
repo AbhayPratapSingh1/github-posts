@@ -4,6 +4,7 @@ import os
 from unittest.mock import patch, AsyncMock
 from tests.conftest import create_test_user
 from auth import create_access_token
+from main import GithubRateLimitedError, GithubApiError
 
 # Ensure GEMINI_API_KEY is set so the endpoint doesn't early-return 500
 os.environ["GEMINI_API_KEY"] = "test-key"
@@ -54,6 +55,16 @@ class TestGithubInfo:
         resp = client.get("/api/github/info")
         assert resp.status_code == 422  # validation error
 
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, side_effect=GithubRateLimitedError())
+    def test_github_info_returns_429_when_github_rate_limited(self, mock_fetch, client, db):
+        resp = client.get("/api/github/info?url=https://github.com/user/repo")
+        assert resp.status_code == 429
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, side_effect=GithubApiError(500))
+    def test_github_info_returns_502_on_github_api_error(self, mock_fetch, client, db):
+        resp = client.get("/api/github/info?url=https://github.com/user/repo")
+        assert resp.status_code == 502
+
 
 class TestGithubGenerate:
     @patch("main.GEMINI_API_KEY", "test-key")
@@ -82,6 +93,12 @@ class TestGithubGenerate:
     def test_generate_returns_404_for_nonexistent_repo(self, mock_fetch, client, db):
         resp = client.post("/api/github/generate?url=https://github.com/user/nope")
         assert resp.status_code == 404
+
+    @patch("main.GEMINI_API_KEY", "test-key")
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, side_effect=GithubRateLimitedError())
+    def test_generate_returns_429_when_github_rate_limited(self, mock_fetch, client, db):
+        resp = client.post("/api/github/generate?url=https://github.com/user/repo")
+        assert resp.status_code == 429
 
     @patch("main.GEMINI_API_KEY", "test-key")
     @patch("main.fetch_github_repo", new_callable=AsyncMock)
