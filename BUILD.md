@@ -176,6 +176,11 @@ A chronological log of how this project is being built. Each entry describes the
 - `ProtectedRoute` and `Comments` check `localStorage.getItem("admin_token")` for admin detection.
 - URL-based token callback (`?token=...&user=...`) restored in `AuthProvider`.
 
+## 29. Fix search z-index below profile modal
+- The header's `backdrop-blur` created a stacking context, trapping the Modal's `zIndex: 9999` inside it.
+- The search input (`z-0`) in the main content painted above the header's stacking context in the root, so it appeared on top of the modal backdrop instead of being dimmed.
+- Added `relative z-10` to the header so its stacking context (and the modal inside it) paints above the search.
+
 ---
 
 ## Current stack

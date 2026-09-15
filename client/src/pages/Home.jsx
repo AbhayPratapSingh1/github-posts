@@ -120,7 +120,7 @@ function Home() {
   }, [hasMore, loadingMore, isLoading, loadPosts, loadSearchResults, isSearching, searchQuery])
 
   return <div className="min-h-screen bg-bg-50 text-fg-900 dark:bg-bg-950 dark:text-fg-100">
-    <header className="border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
+    <header className="relative z-10 border-b border-bg-200 bg-bg-50/80 backdrop-blur dark:border-bg-800 dark:bg-bg-950/80">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-3 py-3 sm:px-6 sm:py-4">
           <Link to="/" className="flex items-center gap-2">
             <Logo className="size-7" />
