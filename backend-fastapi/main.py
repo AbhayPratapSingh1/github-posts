@@ -65,9 +65,14 @@ CSRF_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 @app.middleware("http")
 async def csrf_protect(request: Request, call_next):
     """Require a matching double-submit CSRF token for cookie-authenticated,
-    state-changing requests. Bearer-token (non-cookie) requests are unaffected
-    since a cross-site attacker can't set a custom Authorization header."""
-    if request.method not in CSRF_SAFE_METHODS and request.cookies.get("session"):
+    state-changing requests. Bearer-token requests are unaffected since a
+    cross-site attacker can't set a custom Authorization header (our CORS
+    allowlist blocks the preflight, so the browser never sends it) — this
+    holds even when a session cookie also happens to be present, since the
+    browser auto-attaches cookies regardless of whether the request actually
+    relies on them for auth."""
+    has_bearer = request.headers.get("authorization", "").startswith("Bearer ")
+    if request.method not in CSRF_SAFE_METHODS and request.cookies.get("session") and not has_bearer:
         csrf_cookie = request.cookies.get("csrf_token")
         csrf_header = request.headers.get("x-csrf-token")
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:

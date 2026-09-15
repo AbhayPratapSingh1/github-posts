@@ -101,6 +101,23 @@ class TestCSRFProtection:
         )
         assert resp.status_code == 200
 
+    def test_bearer_request_unaffected_even_when_session_cookie_also_present(self, client, db):
+        # Real browser requests always carry the httponly session cookie set at
+        # login (auto-attached) alongside the Authorization header the frontend
+        # explicitly sends. The CSRF check must key off how the request was
+        # actually authenticated, not merely whether a session cookie exists.
+        user = create_test_user(db, github_id=114, username="bothauthuser")
+        post = create_test_post(db, user_id=user.id, title="Both Auth Target")
+        token = create_access_token(user.id, user.username)
+        client.cookies.set("session", token)
+        client.cookies.set("csrf_token", "some-csrf-value")
+        resp = client.post(
+            f"/api/posts/{post.id}/like",
+            json={"liked": True},
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+
 
 class TestStoredXSSSanitization:
     def test_script_tag_stripped_from_post_description(self, client, db):
