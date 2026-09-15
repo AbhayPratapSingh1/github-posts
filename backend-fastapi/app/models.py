@@ -22,6 +22,7 @@ class Post(Base):
     defaultBranch = Column(String)
     stats = Column(JSON)
     githubOwner = Column(String)
+    githubSynced = Column(Boolean, default=False)
     created_at = Column(String, index=True)
     updated_at = Column(String)
 

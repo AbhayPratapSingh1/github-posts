@@ -90,10 +90,17 @@ export const getGithubInfo = async (url) => {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `Failed to fetch repo info (${res.status})`)
+    const error = new Error(err.error || `Failed to fetch repo info (${res.status})`)
+    error.status = res.status
+    throw error
   }
   return res.json()
 }
+
+export const syncPostGithub = (id) =>
+  request(`/posts/${id}/sync-github`, {
+    method: "POST",
+  })
 
 export const generatePostContent = async (url) => request(`/github/generate?url=${encodeURIComponent(url)}`, {
   method: "POST",

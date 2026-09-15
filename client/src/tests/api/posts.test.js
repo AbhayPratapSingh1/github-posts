@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { getPosts, getPostById, createPost, updatePost, deletePost, getGithubInfo, generatePostContent, likePost, getLikedPosts } from "../../api/posts.js"
+import { getPosts, getPostById, createPost, updatePost, deletePost, getGithubInfo, generatePostContent, likePost, getLikedPosts, syncPostGithub } from "../../api/posts.js"
 
 beforeEach(() => {
   localStorage.clear()
@@ -171,6 +171,31 @@ describe("generatePostContent", () => {
       json: async () => ({ error: "Server error" }),
     }))
 
-    await expect(generatePostContent("https://github.com/user/repo")).rejects.toThrow("500")
+    await expect(generatePostContent("https://github.com/user/repo")).rejects.toThrow("Server error")
+  })
+})
+
+describe("syncPostGithub", () => {
+  it("sends POST to /posts/:id/sync-github", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "my-post", githubSynced: true }),
+    }))
+
+    const result = await syncPostGithub("my-post")
+    expect(result.githubSynced).toBe(true)
+    expect(fetch.mock.calls[0][0]).toContain("/posts/my-post/sync-github")
+    expect(fetch.mock.calls[0][1].method).toBe("POST")
+  })
+
+  it("throws with server error message and status on rate limit", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: "Too Many Requests",
+      json: async () => ({ error: "GitHub API rate limit exceeded." }),
+    }))
+
+    await expect(syncPostGithub("my-post")).rejects.toThrow("GitHub API rate limit exceeded.")
   })
 })

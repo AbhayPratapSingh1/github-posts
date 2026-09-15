@@ -919,7 +919,11 @@ async def admin_update_post(id: str, body: CreatePostRequest, request: Request, 
     if body.github:
         owner, repo = parse_github_url(body.github)
         if owner and repo:
-            gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
+            try:
+                gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
+            except (GithubRateLimitedError, GithubApiError) as e:
+                logger.warning("GitHub lookup failed during admin post update (%s): %s", owner + "/" + repo, e)
+                gh = None
             if gh:
                 data["language"] = data.get("language") or gh.get("language")
                 data["defaultBranch"] = gh.get("default_branch", data.get("defaultBranch"))
@@ -930,6 +934,7 @@ async def admin_update_post(id: str, body: CreatePostRequest, request: Request, 
                     "watchers": gh.get("watchers_count", 0),
                     "openIssues": gh.get("open_issues_count", 0),
                 }
+                data["githubSynced"] = True
 
     updated = postHandler.update_post(id, db, data)
     return updated
@@ -1241,13 +1246,21 @@ async def createPost(body: CreatePostRequest, request: Request, db: Session = De
     now = datetime.now(timezone.utc).isoformat()
     data["created_at"] = now
     data["updated_at"] = now
+    data["githubSynced"] = False
     if data.get("description"):
         data["description"] = sanitize_html(data["description"])
 
     if body.github:
         owner, repo = parse_github_url(body.github)
         if owner and repo:
-            gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
+            try:
+                gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
+            except (GithubRateLimitedError, GithubApiError) as e:
+                # GitHub is unreachable/rate-limited right now: create the post as an
+                # unsynced pre-post rather than blocking the user. They can retry via
+                # POST /api/posts/{id}/sync-github once GitHub is available again.
+                logger.warning("GitHub lookup failed during post creation (%s): %s", owner + "/" + repo, e)
+                gh = None
             if gh:
                 gh_owner_id = gh.get("owner", {}).get("id")
                 if gh_owner_id and user.github_id and gh_owner_id != user.github_id:
@@ -1266,6 +1279,7 @@ async def createPost(body: CreatePostRequest, request: Request, db: Session = De
                     "watchers": gh.get("watchers_count", 0),
                     "openIssues": gh.get("open_issues_count", 0),
                 }
+                data["githubSynced"] = True
 
     post = postHandler.create_post(db, data)
     return post
@@ -1313,7 +1327,14 @@ async def updatePost(id, body: CreatePostRequest, request: Request, db: Session 
     if body.github:
         owner, repo = parse_github_url(body.github)
         if owner and repo:
-            gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
+            try:
+                gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
+            except (GithubRateLimitedError, GithubApiError) as e:
+                # GitHub is unreachable/rate-limited: save the rest of the edit as-is
+                # and leave the existing repo data/sync status untouched. The user can
+                # retry via POST /api/posts/{id}/sync-github later.
+                logger.warning("GitHub lookup failed during post update (%s): %s", owner + "/" + repo, e)
+                gh = None
             if gh:
                 gh_owner_id = gh.get("owner", {}).get("id")
                 if gh_owner_id and user.github_id and gh_owner_id != user.github_id:
@@ -1331,7 +1352,62 @@ async def updatePost(id, body: CreatePostRequest, request: Request, db: Session 
                     "watchers": gh.get("watchers_count", 0),
                     "openIssues": gh.get("open_issues_count", 0),
                 }
+                data["githubSynced"] = True
 
+    updated = postHandler.update_post(id, db, data)
+    return updated
+
+@app.post('/api/posts/{id}/sync-github')
+async def syncPostGithub(id: str, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+
+    if not check_rate_limit(f"github_sync:{client_ip(request)}", max_requests=20, window_seconds=3600):
+        return JSONResponse(status_code=429, content={"error": "Too many requests. Please try again later."})
+
+    post = postHandler.get_post_raw(id, db)
+    if not post:
+        return JSONResponse(status_code=404, content={"error": "Post ID doesn't exist"})
+    if post.user_id != user.id:
+        return JSONResponse(status_code=403, content={"error": "Not authorized to sync this post"})
+    if not post.github:
+        return JSONResponse(status_code=400, content={"error": "This post has no GitHub repository linked"})
+
+    owner, repo = parse_github_url(post.github)
+    if not owner or not repo:
+        return JSONResponse(status_code=400, content={"error": "Invalid GitHub URL. Expected format: https://github.com/owner/repo"})
+
+    try:
+        gh = await fetch_github_repo(owner, repo, getattr(user, "github_token", None))
+    except GithubRateLimitedError:
+        return JSONResponse(
+            status_code=429,
+            content={"error": "GitHub API rate limit exceeded. Try again later, or log in to increase your rate limit."}
+        )
+    except GithubApiError as e:
+        logger.warning("GitHub API error %s while syncing post %s", e.status_code, id)
+        return JSONResponse(status_code=502, content={"error": "GitHub API error. Please try again later."})
+
+    if not gh:
+        return JSONResponse(status_code=404, content={"error": "Repository not found on GitHub"})
+
+    gh_owner_id = gh.get("owner", {}).get("id")
+    if gh_owner_id and user.github_id and gh_owner_id != user.github_id:
+        return JSONResponse(status_code=403, content={"error": "You are not the owner of this repository"})
+
+    data = {
+        "language": gh.get("language"),
+        "defaultBranch": gh.get("default_branch"),
+        "lastPushAt": gh.get("pushed_at"),
+        "githubOwner": gh.get("owner", {}).get("login"),
+        "stats": {
+            "stars": gh.get("stargazers_count", 0),
+            "forks": gh.get("forks_count", 0),
+            "watchers": gh.get("watchers_count", 0),
+            "openIssues": gh.get("open_issues_count", 0),
+        },
+        "githubSynced": True,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
     updated = postHandler.update_post(id, db, data)
     return updated
 

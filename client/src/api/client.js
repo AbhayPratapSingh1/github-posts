@@ -30,6 +30,13 @@ const refreshToken = async () => {
   }
 }
 
+const throwForResponse = async (res) => {
+  const body = typeof res.json === "function" ? await res.json().catch(() => ({})) : {}
+  const error = new Error(body.error || `Request failed: ${res.status} ${res.statusText}`)
+  error.status = res.status
+  throw error
+}
+
 export const request = async (path, options = {}) => {
   try {
     const token = getToken()
@@ -64,11 +71,11 @@ export const request = async (path, options = {}) => {
         ...options,
         headers: retryHeaders,
       })
-      if (!retryRes.ok) throw new Error(`Request failed: ${retryRes.status} ${retryRes.statusText}`)
+      if (!retryRes.ok) await throwForResponse(retryRes)
       return retryRes.json()
     }
 
-    if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`)
+    if (!res.ok) await throwForResponse(res)
     return res.json()
   } catch (e) {
     throw e

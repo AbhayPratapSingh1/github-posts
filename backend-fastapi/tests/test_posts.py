@@ -1,8 +1,26 @@
 """Tests for Posts CRUD: GET /api/posts, GET /api/posts/{id}, POST /api/posts, PUT /api/posts/{id}, DELETE /api/posts/{id}."""
 
 from datetime import timezone
+from unittest.mock import patch, AsyncMock
 from tests.conftest import create_test_user, create_test_post
 from auth import create_access_token
+from main import GithubRateLimitedError, GithubApiError
+
+MOCK_GITHUB_REPO = {
+    "language": "Python",
+    "default_branch": "main",
+    "created_at": "2026-01-01T00:00:00Z",
+    "pushed_at": "2026-09-01T00:00:00Z",
+    "description": "A test repository",
+    "stargazers_count": 100,
+    "forks_count": 25,
+    "watchers_count": 10,
+    "open_issues_count": 5,
+    "owner": {
+        "login": "testuser",
+        "id": 12345,
+    },
+}
 
 
 class TestGetPosts:
@@ -152,6 +170,64 @@ class TestCreatePost:
         # May fail due to GitHub API, but should not crash
         assert resp.status_code in (200, 403, 500)
 
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, return_value=MOCK_GITHUB_REPO)
+    def test_create_post_with_github_marks_synced(self, mock_fetch, client, db, auth_headers):
+        create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        resp = client.post(
+            "/api/posts",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": "Synced Post",
+                "type": "playable",
+                "shortDescription": "A new post",
+                "description": "Full description",
+                "github": "https://github.com/testuser/repo",
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["githubSynced"] is True
+        assert resp.json()["language"] == "Python"
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, side_effect=GithubRateLimitedError())
+    def test_create_post_creates_unsynced_pre_post_when_github_rate_limited(self, mock_fetch, client, db, auth_headers):
+        create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        resp = client.post(
+            "/api/posts",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": "Pre Post",
+                "type": "playable",
+                "shortDescription": "A new post",
+                "description": "Full description",
+                "github": "https://github.com/testuser/repo",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["githubSynced"] is False
+        assert data["language"] is None
+        assert data["stats"] is None
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, side_effect=GithubApiError(500))
+    def test_create_post_creates_unsynced_pre_post_on_github_api_error(self, mock_fetch, client, db, auth_headers):
+        create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        resp = client.post(
+            "/api/posts",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": "Pre Post 2",
+                "type": "playable",
+                "shortDescription": "A new post",
+                "description": "Full description",
+                "github": "https://github.com/testuser/repo",
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["githubSynced"] is False
+
 
 class TestUpdatePost:
     def test_update_post_success(self, client, db, auth_headers):
@@ -203,6 +279,113 @@ class TestUpdatePost:
             },
         )
         assert resp.status_code == 404
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, side_effect=GithubRateLimitedError())
+    def test_update_post_saves_edit_when_github_rate_limited(self, mock_fetch, client, db, auth_headers):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        create_test_post(db, user_id=user.id, title="Original Title", github="https://github.com/testuser/repo")
+        resp = client.put(
+            "/api/posts/original-title",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": "Original Title",
+                "type": "playable",
+                "shortDescription": "Edited while rate-limited",
+                "description": "Updated description",
+                "github": "https://github.com/testuser/repo",
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["shortDescription"] == "Edited while rate-limited"
+
+
+class TestSyncGithub:
+    def test_sync_requires_auth(self, client, db):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        create_test_post(db, user_id=user.id, title="My Post", github="https://github.com/testuser/repo")
+        resp = client.post("/api/posts/my-post/sync-github")
+        assert resp.status_code == 401
+
+    def test_sync_returns_404_when_post_not_found(self, client, db, auth_headers):
+        create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        resp = client.post(
+            "/api/posts/nonexistent/sync-github",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 404
+
+    def test_sync_returns_403_when_not_owner(self, client, db):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        other = create_test_user(db, github_id=99999, username="otheruser")
+        create_test_post(db, user_id=user.id, title="My Post", github="https://github.com/testuser/repo")
+        token = create_access_token(other.id, "otheruser")
+        resp = client.post(
+            "/api/posts/my-post/sync-github",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 403
+
+    def test_sync_returns_400_when_no_github_url(self, client, db, auth_headers):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        create_test_post(db, user_id=user.id, title="No Github")
+        resp = client.post(
+            "/api/posts/no-github/sync-github",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 400
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, return_value=MOCK_GITHUB_REPO)
+    def test_sync_updates_post_and_marks_synced(self, mock_fetch, client, db, auth_headers):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        create_test_post(db, user_id=user.id, title="Unsynced Post", github="https://github.com/testuser/repo")
+        resp = client.post(
+            "/api/posts/unsynced-post/sync-github",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["githubSynced"] is True
+        assert data["language"] == "Python"
+        assert data["stats"]["stars"] == 100
+        assert data["defaultBranch"] == "main"
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, side_effect=GithubRateLimitedError())
+    def test_sync_returns_429_when_github_rate_limited(self, mock_fetch, client, db, auth_headers):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        create_test_post(db, user_id=user.id, title="Unsynced Post", github="https://github.com/testuser/repo")
+        resp = client.post(
+            "/api/posts/unsynced-post/sync-github",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 429
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, return_value=None)
+    def test_sync_returns_404_when_repo_not_found(self, mock_fetch, client, db, auth_headers):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        create_test_post(db, user_id=user.id, title="Unsynced Post", github="https://github.com/testuser/repo")
+        resp = client.post(
+            "/api/posts/unsynced-post/sync-github",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 404
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock)
+    def test_sync_returns_403_when_repo_owned_by_someone_else(self, mock_fetch, client, db, auth_headers):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        create_test_post(db, user_id=user.id, title="Unsynced Post", github="https://github.com/testuser/repo")
+        mock_fetch.return_value = {**MOCK_GITHUB_REPO, "owner": {"login": "someoneelse", "id": 99999}}
+        resp = client.post(
+            "/api/posts/unsynced-post/sync-github",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 403
 
 
 class TestDeletePost:

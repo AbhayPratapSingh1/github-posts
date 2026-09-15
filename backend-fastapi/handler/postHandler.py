@@ -35,6 +35,7 @@ class Post_handler:
             "defaultBranch": getattr(post, "defaultBranch", None),
             "stats": getattr(post, "stats", None),
             "githubOwner": getattr(post, "githubOwner", None),
+            "githubSynced": bool(getattr(post, "githubSynced", False)),
             "created_at": getattr(post, "created_at", None),
             "updated_at": getattr(post, "updated_at", None),
             "authorName": user.name if user else None,

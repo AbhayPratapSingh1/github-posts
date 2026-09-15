@@ -3,10 +3,10 @@ import { Link, useParams, useNavigate } from "react-router-dom"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import DOMPurify from "dompurify"
-import { FaGithub, FaPlay, FaGlobe, FaTrash, FaEdit } from "react-icons/fa"
+import { FaGithub, FaPlay, FaGlobe, FaTrash, FaEdit, FaSync, FaSpinner } from "react-icons/fa"
 import { READ_WORD_PER_MINUTE } from "../config/text"
 import { POST_TYPE } from "../config/posts"
-import { getPostById, deletePost } from "../api/posts"
+import { getPostById, deletePost, syncPostGithub } from "../api/posts"
 import { useAuth } from "../context/AuthContext"
 import { useToast } from "../context/ToastContext"
 import ProfileMenu from "../components/ProfileMenu"
@@ -34,6 +34,7 @@ function Post() {
   const [error, setError] = useState(null)
   const [comments, setComments] = useState([])
   const [lightbox, setLightbox] = useState({ open: false, startIndex: 0, images: [] })
+  const [syncing, setSyncing] = useState(false)
   const articleRef = useRef(null)
 
   useEffect(() => {
@@ -98,6 +99,19 @@ function Post() {
 
   const handleLikeChange = (state) => {
     setPost((prev) => (prev ? { ...prev, ...state } : prev))
+  }
+
+  const handleSyncGithub = async () => {
+    setSyncing(true)
+    try {
+      const updated = await syncPostGithub(id)
+      setPost((prev) => (prev ? { ...prev, ...updated } : prev))
+      addToast("Repo details synced with GitHub", "success")
+    } catch (err) {
+      addToast(err.message || "Failed to sync with GitHub", "error")
+    } finally {
+      setSyncing(false)
+    }
   }
 
   if (isLoading) {
@@ -273,7 +287,24 @@ function Post() {
       </article>
 
       <section className="border-t border-bg-200 py-12 dark:border-bg-800">
-        <h2 className="mb-6 text-lg font-bold">Repository Details</h2>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">Repository Details</h2>
+          {user && user.id === post.user_id && post.github && (
+            <button
+              onClick={handleSyncGithub}
+              disabled={syncing}
+              className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-xs font-semibold hover:bg-bg-100 disabled:opacity-50 dark:border-bg-700 dark:hover:bg-bg-900"
+            >
+              {syncing ? <FaSpinner className="animate-spin" /> : <FaSync />}
+              {syncing ? "Syncing..." : "Sync with GitHub"}
+            </button>
+          )}
+        </div>
+        {post.github && !post.githubSynced && (
+          <p className="mb-4 text-xs text-amber-600 dark:text-amber-400">
+            Not yet synced with GitHub &mdash; some details below may be N/A.
+          </p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 dark:border-bg-700 dark:bg-bg-900">
             <p className="text-xs font-semibold tracking-wider text-fg-500 uppercase dark:text-fg-400">Language</p>

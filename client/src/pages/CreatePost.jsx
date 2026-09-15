@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { FaArrowLeft, FaSpinner, FaCheck, FaRobot, FaPencilAlt } from "react-icons/fa"
-import { createPost, updatePost, adminUpdatePost, getGithubInfo, getPostById, generatePostContent } from "../api/posts"
+import { createPost, updatePost, adminUpdatePost, getGithubInfo, getPostById, generatePostContent, syncPostGithub } from "../api/posts"
 import { useToast } from "../context/ToastContext"
 import { useAuth } from "../context/AuthContext"
 import Logo from "../components/Logo"
@@ -35,9 +35,11 @@ function CreatePost() {
   })
   const [githubInfo, setGithubInfo] = useState(null)
   const [githubStatus, setGithubStatus] = useState(null)
+  const [githubSynced, setGithubSynced] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState(null)
   const [creationMethod, setCreationMethod] = useState(null) // null | "ai" | "custom"
+  const [syncing, setSyncing] = useState(false)
   const debounceRef = useRef(null)
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -63,6 +65,7 @@ function CreatePost() {
             defaultBranch: post.defaultBranch,
             stats: post.stats,
           })
+          setGithubSynced(Boolean(post.githubSynced))
           setCreationMethod("custom")
         }
       })
@@ -87,19 +90,41 @@ function CreatePost() {
       try {
         const info = await getGithubInfo(form.github)
         setGithubInfo(info)
+        setGithubSynced(true)
         if (!isAdmin && info.ownerId && user?.github_id && info.ownerId !== user.github_id) {
           setGithubStatus("not-owner")
         } else {
           setGithubStatus("success")
         }
-      } catch {
+      } catch (err) {
         setGithubInfo(null)
-        setGithubStatus("error")
+        setGithubSynced(false)
+        setGithubStatus(err?.status === 429 ? "rate-limited" : "error")
       }
     }, 500)
 
     return () => clearTimeout(debounceRef.current)
   }, [form.github, user])
+
+  const handleSyncGithub = async () => {
+    if (!id) return
+    setSyncing(true)
+    try {
+      const updated = await syncPostGithub(id)
+      setGithubInfo({
+        githubOwner: updated.githubOwner,
+        language: updated.language,
+        defaultBranch: updated.defaultBranch,
+        stats: updated.stats,
+      })
+      setGithubSynced(Boolean(updated.githubSynced))
+      addToast("Repo details synced with GitHub", "success")
+    } catch (err) {
+      addToast(err.message || "Failed to sync with GitHub", "error")
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const handleGenerate = async () => {
     if (!form.github) return
@@ -257,17 +282,73 @@ function CreatePost() {
                 {githubStatus === "not-owner" && (
                   <p className="mt-1 text-xs text-red-500">You are not the owner of this repository</p>
                 )}
+                {githubStatus === "rate-limited" && !isEdit && (
+                  <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                    <p>GitHub is rate-limiting requests right now, so repo details (language, stars, branch...) can't be fetched.</p>
+                    <p className="mt-1">You can still create this post &mdash; those fields will show as N/A until you sync it with GitHub later from the edit page.</p>
+                    {!creationMethod && (
+                      <button
+                        type="button"
+                        onClick={() => setCreationMethod("custom")}
+                        className="mt-2 rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-200 dark:hover:bg-amber-900"
+                      >
+                        Continue without GitHub info
+                      </button>
+                    )}
+                  </div>
+                )}
                 {githubInfo && githubStatus !== "not-owner" && (
                   <div className="mt-2 rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 text-sm dark:border-bg-700 dark:bg-bg-900">
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-fg-600 dark:text-fg-400">
-                      <span><strong className="text-fg-900 dark:text-fg-100">Owner:</strong> {githubInfo.githubOwner}</span>
-                      <span><strong className="text-fg-900 dark:text-fg-100">Language:</strong> {githubInfo.language}</span>
-                      <span><strong className="text-fg-900 dark:text-fg-100">Branch:</strong> {githubInfo.defaultBranch}</span>
-                      <span><strong className="text-fg-900 dark:text-fg-100">Stars:</strong> {githubInfo.stats?.stars}</span>
-                      <span><strong className="text-fg-900 dark:text-fg-100">Forks:</strong> {githubInfo.stats?.forks}</span>
+                      <span><strong className="text-fg-900 dark:text-fg-100">Owner:</strong> {githubInfo.githubOwner || "N/A"}</span>
+                      <span><strong className="text-fg-900 dark:text-fg-100">Language:</strong> {githubInfo.language || "N/A"}</span>
+                      <span><strong className="text-fg-900 dark:text-fg-100">Branch:</strong> {githubInfo.defaultBranch || "N/A"}</span>
+                      <span><strong className="text-fg-900 dark:text-fg-100">Stars:</strong> {githubInfo.stats?.stars ?? "N/A"}</span>
+                      <span><strong className="text-fg-900 dark:text-fg-100">Forks:</strong> {githubInfo.stats?.forks ?? "N/A"}</span>
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Edit mode: show the currently saved repo info, with a manual sync action */}
+            {isEdit && form.github && (
+              <div>
+                <label className={labelClass}>GitHub Repository</label>
+                <div className="rounded-lg border border-bg-200 bg-bg-100 px-4 py-3 text-sm dark:border-bg-700 dark:bg-bg-900">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <a
+                      href={form.github}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary-600 hover:underline dark:text-primary-400"
+                    >
+                      {form.github}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleSyncGithub}
+                      disabled={syncing}
+                      className="flex items-center gap-1.5 rounded-lg border border-bg-300 px-3 py-1.5 text-xs font-semibold hover:bg-bg-50 disabled:opacity-50 dark:border-bg-700 dark:hover:bg-bg-950"
+                    >
+                      {syncing && <FaSpinner className="animate-spin" />}
+                      {syncing ? "Syncing..." : "Sync with GitHub"}
+                    </button>
+                  </div>
+                  {!githubSynced && (
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                      Not yet synced with GitHub &mdash; repo details below may be out of date or N/A.
+                    </p>
+                  )}
+                  {githubInfo && (
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-fg-600 dark:text-fg-400">
+                      <span><strong className="text-fg-900 dark:text-fg-100">Language:</strong> {githubInfo.language || "N/A"}</span>
+                      <span><strong className="text-fg-900 dark:text-fg-100">Branch:</strong> {githubInfo.defaultBranch || "N/A"}</span>
+                      <span><strong className="text-fg-900 dark:text-fg-100">Stars:</strong> {githubInfo.stats?.stars ?? "N/A"}</span>
+                      <span><strong className="text-fg-900 dark:text-fg-100">Forks:</strong> {githubInfo.stats?.forks ?? "N/A"}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
