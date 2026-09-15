@@ -4,6 +4,7 @@ import re
 import json
 import logging
 import bleach
+from bleach.css_sanitizer import CSSSanitizer
 import markdown as md
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -112,17 +113,44 @@ def require_admin(request: Request, db: Session) -> Optional[User]:
 
 
 ALLOWED_HTML_TAGS = [
-    "p", "br", "div", "span", "strong", "b", "em", "i", "u", "s",
+    "p", "br", "hr", "div", "span", "strong", "b", "em", "i", "u", "s",
     "h1", "h2", "h3", "h4", "ul", "ol", "li", "a", "img",
     "blockquote", "code", "pre", "video", "source", "figure", "figcaption",
 ]
+
+# The gallery block (BlockEditor's editorBlocks.js) serializes to
+# <div class="gallery-grid" data-mode="..." data-images="..." style="...">
+# with <img style="filter:brightness(.6)"> for the "+N more" overlay. Without
+# these, sanitize_html silently strips the class/data attributes bleach
+# doesn't know about, so the gallery loses its layout on render and can no
+# longer be recognized/re-parsed into editable blocks (parseHtmlToBlocks
+# keys off the "gallery-grid" class).
+_GALLERY_DIV_CLASSES = {"gallery-grid", "gallery-more"}
+_GALLERY_MODES = {"grid", "truncated"}
+
+
+def _allowed_div_attr(tag, name, value):
+    if name == "class":
+        return value in _GALLERY_DIV_CLASSES
+    if name == "data-mode":
+        return value in _GALLERY_MODES
+    if name == "data-images":
+        return True
+    if name == "style":
+        return True
+    return False
+
+
 ALLOWED_HTML_ATTRS = {
     "a": ["href", "title", "target", "rel"],
-    "img": ["src", "alt", "title", "width", "height"],
+    "img": ["src", "alt", "title", "width", "height", "style"],
     "video": ["src", "controls", "width", "height", "poster"],
     "source": ["src", "type"],
+    "div": _allowed_div_attr,
 }
 ALLOWED_HTML_PROTOCOLS = ["http", "https", "mailto"]
+ALLOWED_CSS_PROPERTIES = ["grid-template-columns", "filter"]
+_CSS_SANITIZER = CSSSanitizer(allowed_css_properties=ALLOWED_CSS_PROPERTIES)
 
 
 def sanitize_html(html: str) -> str:
@@ -133,6 +161,7 @@ def sanitize_html(html: str) -> str:
         tags=ALLOWED_HTML_TAGS,
         attributes=ALLOWED_HTML_ATTRS,
         protocols=ALLOWED_HTML_PROTOCOLS,
+        css_sanitizer=_CSS_SANITIZER,
         strip=True,
     )
 

@@ -138,3 +138,75 @@ class TestStoredXSSSanitization:
         assert "<script" not in description
         assert "onerror" not in description
         assert "<p>hi</p>" in description
+
+    def test_gallery_block_markup_survives_sanitization(self, client, db):
+        # The BlockEditor gallery block serializes to a div carrying class/
+        # data-mode/data-images/style attributes that bleach doesn't know
+        # about by default; without an explicit allowlist for them, saving a
+        # post silently strips the gallery's layout and re-editability.
+        user = create_test_user(db, github_id=201, username="galleryauthor")
+        token = create_access_token(user.id, user.username)
+        description = (
+            '<div class="gallery-grid" data-mode="grid" data-images="[]" '
+            'style="grid-template-columns:repeat(3,1fr);">'
+            '<img src="https://example.com/a.jpg" alt="">'
+            '<div class="gallery-more">'
+            '<img src="https://example.com/b.jpg" alt="" style="filter:brightness(.6);" />'
+            '<span>+2</span></div></div>'
+        )
+        resp = client.post(
+            "/api/posts",
+            json={
+                "title": "Gallery Test Post",
+                "type": "none",
+                "shortDescription": "short",
+                "description": description,
+            },
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        saved = resp.json()["description"]
+        assert 'class="gallery-grid"' in saved
+        assert 'data-mode="grid"' in saved
+        assert "data-images=" in saved
+        assert "grid-template-columns:repeat(3,1fr)" in saved
+        assert 'class="gallery-more"' in saved
+        assert "filter:brightness(.6)" in saved
+
+    def test_hr_divider_block_survives_sanitization(self, client, db):
+        user = create_test_user(db, github_id=203, username="divideruser")
+        token = create_access_token(user.id, user.username)
+        resp = client.post(
+            "/api/posts",
+            json={
+                "title": "Divider Test Post",
+                "type": "none",
+                "shortDescription": "short",
+                "description": "<p>a</p><hr /><p>b</p>",
+            },
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        assert "<hr" in resp.json()["description"]
+
+    def test_gallery_div_rejects_malicious_style_and_class(self, client, db):
+        user = create_test_user(db, github_id=202, username="galleryattacker")
+        token = create_access_token(user.id, user.username)
+        resp = client.post(
+            "/api/posts",
+            json={
+                "title": "Gallery Attack Post",
+                "type": "none",
+                "shortDescription": "short",
+                "description": (
+                    '<div class="not-a-gallery-class" onclick="alert(1)" '
+                    'style="background:url(javascript:alert(1))">x</div>'
+                ),
+            },
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        saved = resp.json()["description"]
+        assert "onclick" not in saved
+        assert "javascript:" not in saved
+        assert "not-a-gallery-class" not in saved
