@@ -90,6 +90,34 @@ function Post() {
   const handleImageClick = useCallback((e) => {
     const img = e.target.closest("img")
     if (!img || !articleRef.current) return
+
+    // Truncated galleries ("+N more") only render `columns` <img> elements
+    // in the DOM — the rest exist only in the gallery div's data-images
+    // attribute. Use that full list so the lightbox can page through every
+    // image, not just the visible ones.
+    const galleryEl = img.closest(".gallery-grid")
+    if (galleryEl) {
+      const raw = galleryEl.getAttribute("data-images")
+      if (raw) {
+        try {
+          const galleryImages = JSON.parse(raw)
+          if (galleryImages.length) {
+            const visibleImgs = Array.from(galleryEl.querySelectorAll("img"))
+            const visibleIndex = visibleImgs.indexOf(img)
+            const startIndex = visibleIndex === -1 ? 0 : visibleIndex
+            setLightbox({
+              open: true,
+              startIndex,
+              images: galleryImages.map((i) => i.src),
+            })
+            return
+          }
+        } catch {
+          // fall through to the whole-article image list below
+        }
+      }
+    }
+
     const allImages = Array.from(articleRef.current.querySelectorAll("img"))
     const index = allImages.indexOf(img)
     if (index === -1) return

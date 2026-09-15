@@ -233,11 +233,19 @@ export function blocksToHtml(blocks) {
         const mode = b.mode || "truncated"
         const allImgs = (b.images || []).filter((img) => img.src)
         if (!allImgs.length) break
-        const imgsData = allImgs.map((img) => ({ src: img.src, alt: img.alt || "" }))
+        // Pending (not-yet-uploaded) images only have a local blob: preview
+        // URL, which stops resolving once the tab/session that created it is
+        // gone. Use the same {{media:ID}} placeholder here as the visible
+        // <img> tags below, so /api/posts/{id}/finalize's find-and-replace
+        // also fixes up data-images — otherwise re-opening the post for
+        // editing rebuilds the gallery from this attribute and picks up the
+        // stale blob: URL instead of the real uploaded one.
+        const resolvedSrc = (img) => (img.mediaId && img.file ? `{{media:${img.mediaId}}}` : img.src)
+        const imgsData = allImgs.map((img) => ({ src: resolvedSrc(img), alt: img.alt || "" }))
         const imgsJson = JSON.stringify(imgsData)
         const visibleImgs = mode === "truncated" ? allImgs.slice(0, cols) : allImgs
         const inner = visibleImgs.map((img, i) => {
-          const imgSrc = img.mediaId && img.file ? `{{media:${img.mediaId}}}` : escapeHtml(img.src)
+          const imgSrc = escapeHtml(resolvedSrc(img))
           const isLast = mode === "truncated" && i === visibleImgs.length - 1 && allImgs.length > cols
           if (isLast) {
             const remaining = allImgs.length - cols

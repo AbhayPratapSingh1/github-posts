@@ -117,4 +117,40 @@ describe("blocksToHtml", () => {
     expect(html).toContain('<img src="https://a.png" alt="shot" />')
     expect(html).toContain('<video src="https://v.mp4" controls></video>')
   })
+
+  it("uses the {{media:ID}} placeholder in data-images for pending gallery uploads, not the blob: preview URL", () => {
+    const html = blocksToHtml([
+      {
+        type: "gallery",
+        columns: 2,
+        mode: "grid",
+        images: [
+          { src: "blob:http://localhost/abc", mediaId: "m1", file: {}, alt: "one" },
+          { src: "https://cdn.example.com/already-uploaded.jpg", alt: "two" },
+        ],
+      },
+    ])
+    expect(html).toContain('src="{{media:m1}}"')
+    expect(html).not.toContain("blob:")
+    const dataImagesMatch = html.match(/data-images="([^"]*)"/)
+    expect(dataImagesMatch).toBeTruthy()
+    const decoded = dataImagesMatch[1].replace(/&quot;/g, '"')
+    const parsed = JSON.parse(decoded)
+    expect(parsed).toEqual([
+      { src: "{{media:m1}}", alt: "one" },
+      { src: "https://cdn.example.com/already-uploaded.jpg", alt: "two" },
+    ])
+  })
+
+  it("keeps all images (including hidden/truncated ones) in data-images", () => {
+    const images = [1, 2, 3, 4].map((n) => ({ src: `https://cdn.example.com/${n}.jpg`, alt: `img${n}` }))
+    const html = blocksToHtml([{ type: "gallery", columns: 2, mode: "truncated", images }])
+    const dataImagesMatch = html.match(/data-images="([^"]*)"/)
+    const parsed = JSON.parse(dataImagesMatch[1].replace(/&quot;/g, '"'))
+    expect(parsed).toHaveLength(4)
+    // Only the visible slots (2 columns, last one showing the "+N" overlay) render as <img>
+    expect((html.match(/<img /g) || []).length).toBe(2)
+    expect(html).toContain('class="gallery-more"')
+    expect(html).toContain(">+2<")
+  })
 })
