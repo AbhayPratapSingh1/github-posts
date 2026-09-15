@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
-import { API_BASE } from "../api/client"
+import { API_BASE, setAuthClearHandler } from "../api/client"
 
 const AuthContext = createContext(null)
 
@@ -20,6 +20,13 @@ function clearAuth() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setAuthClearHandler(() => {
+      setUser(null)
+    })
+    return () => setAuthClearHandler(null)
+  }, [])
 
   const checkAuth = useCallback(async () => {
     setLoading(true)
@@ -98,7 +105,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, logout, checkAuth, clearAuth }}>
       {children}
     </AuthContext.Provider>
   )

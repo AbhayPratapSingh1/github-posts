@@ -23,6 +23,7 @@ from app.models import User, Post, Comment, Like, PostMedia, CommentLike, Feedba
 from auth import (
     create_access_token,
     create_refresh_token,
+    decode_token,
     generate_csrf_token,
     get_user_from_request,
     refresh_access_token,
@@ -353,18 +354,37 @@ def logout():
 
 @app.post("/api/auth/refresh")
 def refresh(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("refresh_token")
-    if not token:
-        return JSONResponse(status_code=401, content={"error": "No refresh token"})
     try:
-        new_access = refresh_access_token(token, db)
+        token = None
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+        if not token:
+            token = request.cookies.get("refresh_token")
+        if not token:
+            return JSONResponse(status_code=401, content={"error": "No refresh token"})
+        payload = decode_token(token)
+        if not payload or payload.get("type") != "refresh":
+            return JSONResponse(status_code=401, content={"error": "Invalid refresh token"})
+        user_id = int(payload.get("sub", 0))
+        if db is not None:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return JSONResponse(status_code=401, content={"error": "User not found"})
+            new_access = create_access_token(user.id, user.username)
+            new_refresh = create_refresh_token(user.id, user.username)
+        else:
+            return JSONResponse(status_code=401, content={"error": "Invalid refresh token"})
+        response = JSONResponse({
+            "success": True,
+            "access_token": new_access,
+            "refresh_token": new_refresh,
+        })
+        set_session_cookie(response, new_access)
+        set_refresh_cookie(response, new_refresh)
+        return response
     except Exception:
-        new_access = None
-    if not new_access:
         return JSONResponse(status_code=401, content={"error": "Invalid refresh token"})
-    response = JSONResponse({"success": True, "access_token": new_access})
-    set_session_cookie(response, new_access)
-    return response
 
 @app.get("/api/auth/github")
 def github_login(returnTo: str = "/"):

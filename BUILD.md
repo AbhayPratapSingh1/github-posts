@@ -181,6 +181,12 @@ A chronological log of how this project is being built. Each entry describes the
 - The search input (`z-0`) in the main content painted above the header's stacking context in the root, so it appeared on top of the modal backdrop instead of being dimmed.
 - Added `relative z-10` to the header so its stacking context (and the modal inside it) paints above the search.
 
+## 30. Fix refresh token flow: Bearer header + rotation + race condition
+- **Backend `/auth/refresh`:** Accept refresh token from `Authorization: Bearer` header (primary) or `refresh_token` cookie (fallback), matching the frontend's localStorage-first approach. Issues a new refresh token on each refresh (rotation). Returns both `access_token` and `refresh_token` in the JSON response.
+- **Frontend `client.js`:** `refreshToken()` now sends the refresh token (not access token) via the `Authorization` header. Stores the new refresh token from the response. Race condition fixed: if refresh fails, all pending requests reject immediately (no retry with expired token). `clearAuth()` called on refresh failure.
+- **Frontend `AuthContext.jsx`:** Registers an `onAuthClear` callback with `client.js` so user state is cleared when `client.js` triggers auth cleanup. Exports `clearAuth` in context value.
+- **CSRF middleware:** Unchanged — already exempts Bearer-token requests, so the refresh endpoint works with or without cookies.
+
 ---
 
 ## Current stack
