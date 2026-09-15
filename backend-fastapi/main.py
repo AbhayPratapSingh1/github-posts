@@ -1343,8 +1343,8 @@ async def updatePost(id, body: CreatePostRequest, request: Request, db: Session 
                         content={"error": "You are not the owner of this repository"}
                     )
                 data["language"] = data.get("language") or gh.get("language")
-                data["defaultBranch"] = gh.get("defaultBranch", data.get("defaultBranch"))
-                data["lastPushAt"] = gh.get("lastPushAt", data.get("lastPushAt"))
+                data["defaultBranch"] = gh.get("default_branch", data.get("defaultBranch"))
+                data["lastPushAt"] = gh.get("pushed_at", data.get("lastPushAt"))
                 data["githubOwner"] = gh.get("owner", {}).get("login")
                 data["stats"] = {
                     "stars": gh.get("stargazers_count", 0),

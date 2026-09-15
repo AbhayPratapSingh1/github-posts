@@ -247,6 +247,27 @@ class TestUpdatePost:
         assert resp.status_code == 200
         assert resp.json()["title"] == "Updated Title"
 
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, return_value=MOCK_GITHUB_REPO)
+    def test_update_post_refreshes_default_branch_and_last_push_from_github(self, mock_fetch, client, db, auth_headers):
+        user = create_test_user(db, github_id=12345, username="testuser")
+        token = create_access_token(1, "testuser")
+        create_test_post(db, user_id=user.id, title="Original Title", github="https://github.com/testuser/repo")
+        resp = client.put(
+            "/api/posts/original-title",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": "Original Title",
+                "type": "playable",
+                "shortDescription": "Updated",
+                "description": "Updated description",
+                "github": "https://github.com/testuser/repo",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["defaultBranch"] == MOCK_GITHUB_REPO["default_branch"]
+        assert data["lastPushAt"] == MOCK_GITHUB_REPO["pushed_at"]
+
     def test_update_post_returns_403_when_not_owner(self, client, db):
         user = create_test_user(db, github_id=12345, username="testuser")
         other = create_test_user(db, github_id=99999, username="otheruser")
