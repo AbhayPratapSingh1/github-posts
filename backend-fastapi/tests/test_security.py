@@ -1,8 +1,11 @@
 """Regression tests for the security fixes: hardcoded backdoor removal,
 identity-bound admin login, CSRF protection, and stored-XSS sanitization."""
 
+from unittest.mock import patch, AsyncMock
+from starlette.requests import Request
 from auth import create_access_token
 from tests.conftest import create_test_user, create_test_post
+from main import client_ip
 
 
 def _auth(token):
@@ -210,3 +213,56 @@ class TestStoredXSSSanitization:
         assert "onclick" not in saved
         assert "javascript:" not in saved
         assert "not-a-gallery-class" not in saved
+
+
+def _make_request(headers=None, client_host="10.0.0.5"):
+    scope = {
+        "type": "http",
+        "headers": [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()],
+        "client": (client_host, 12345),
+    }
+    return Request(scope)
+
+
+class TestClientIpBehindProxy:
+    # On Render (and most PaaS), request.client.host is the reverse proxy's
+    # own address — identical for every visitor — so every per-IP rate limit
+    # collapsed into one shared, app-wide bucket. Once enough requests came
+    # in from *anyone*, everyone started getting 429s until the window
+    # rolled over, even someone who'd made a single request hours earlier.
+    def test_prefers_x_forwarded_for_over_socket_peer(self):
+        req = _make_request({"x-forwarded-for": "203.0.113.7, 10.0.0.1"})
+        assert client_ip(req) == "203.0.113.7"
+
+    def test_falls_back_to_x_real_ip(self):
+        req = _make_request({"x-real-ip": "203.0.113.9"})
+        assert client_ip(req) == "203.0.113.9"
+
+    def test_falls_back_to_socket_peer_without_proxy_headers(self):
+        req = _make_request({}, client_host="10.0.0.5")
+        assert client_ip(req) == "10.0.0.5"
+
+    @patch("main.fetch_github_repo", new_callable=AsyncMock, return_value=None)
+    def test_different_forwarded_for_values_get_independent_rate_limit_buckets(self, mock_fetch, client, db):
+        user = create_test_user(db, github_id=300, username="ratelimituser")
+        token = create_access_token(user.id, user.username)
+        post = create_test_post(db, user_id=user.id, title="Rate Limit Target", github="https://github.com/x/y")
+
+        # Exhaust the sync-github rate limit (20/hour) as one "client".
+        for _ in range(20):
+            client.post(
+                f"/api/posts/{post.id}/sync-github",
+                headers={"Authorization": f"Bearer {token}", "X-Forwarded-For": "203.0.113.1"},
+            )
+        blocked = client.post(
+            f"/api/posts/{post.id}/sync-github",
+            headers={"Authorization": f"Bearer {token}", "X-Forwarded-For": "203.0.113.1"},
+        )
+        assert blocked.status_code == 429
+
+        # A different client (different X-Forwarded-For) must not be affected.
+        other = client.post(
+            f"/api/posts/{post.id}/sync-github",
+            headers={"Authorization": f"Bearer {token}", "X-Forwarded-For": "203.0.113.2"},
+        )
+        assert other.status_code != 429

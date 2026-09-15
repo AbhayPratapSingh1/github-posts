@@ -99,6 +99,20 @@ def check_rate_limit(key: str, max_requests: int, window_seconds: int) -> bool:
 
 
 def client_ip(request: Request) -> str:
+    """Real client IP for rate-limiting. Render (like most PaaS) terminates
+    the connection at a reverse proxy, so request.client.host is the proxy's
+    own address — identical for every visitor — not the original caller.
+    That collapsed every per-IP rate limit into one shared, app-wide bucket:
+    once enough requests came in from anyone, everyone started getting 429s
+    until the window rolled over. The proxy sets X-Forwarded-For with the
+    original client as the first entry; trust it here since the app is only
+    reachable through that proxy, never directly."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
     return request.client.host if request.client else "unknown"
 
 
